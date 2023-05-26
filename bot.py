@@ -42,7 +42,7 @@ Management_Emails = "James.Boglioli@stonybrook.edu, Andrea.Lebedinski@stonybrook
 
 event_confirmation_days = 2
 
-TOKEN = 'OTAyMzAwOTc2ODY4ODg0NTAw.YXcbRA.WT3CzMZZRdz0hlSBYAOtrcJSEQ4'
+TOKEN = NEW_TOKEN
 description = f'Slash Commands Supported - V {version} By: {signature}'
 
 intents = discord.Intents.default(); intents.members = True
