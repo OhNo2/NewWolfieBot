@@ -79,6 +79,7 @@ monthvar = getOSdatetime()
 
 @bot.event
 async def on_ready():
+    utils.AutoUpdate.start()
     gcal.iterate_events.start()
     gcal.timeoff.start()
     server = bot.get_guild(901724465476546571)
