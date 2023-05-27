@@ -1,4 +1,6 @@
-import csv; import os; import pickle; import re
+#!/usr/bin/env python
+
+import csv; import os; import pickle; import re; import sys
 from itertools import permutations; import json; import random; import time; from datetime import datetime
 from datetime import timedelta; import asyncio
 from typing import final; import discord
@@ -33,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'0.0.1'
+version = f'1.0.0'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -42,7 +44,10 @@ Management_Emails = "James.Boglioli@stonybrook.edu, Andrea.Lebedinski@stonybrook
 
 event_confirmation_days = 2
 
-TOKEN = NEW_TOKEN
+DISCORD_TOKEN = open("bot_token.txt","r")
+DISCORD_TOKEN = DISCORD_TOKEN.read()
+
+TOKEN = DISCORD_TOKEN
 description = f'Slash Commands Supported - V {version} By: {signature}'
 
 intents = discord.Intents.default(); intents.members = True
@@ -54,7 +59,7 @@ PTOsheet = gsclient.open_by_key('1yLufq6ZppMDydmZ9ftmnuUzduqNib6Qv_p09R_3Ap2A')
 api = gsclient.open_by_key("1Qi8egVV5cS5G_9WTi94A6B6ZxmThePRt54I6fXYsOGE")
 
 contact_info = gsheet.worksheet_by_title('WOLFIE CONTACT INFO')
-wolfie_schedule = gsheet.worksheet_by_title('22-23 SCHEDULE')
+wolfie_schedule = gsheet.worksheet_by_title('SCHEDULE')
 weekapi = api.worksheet_by_title('WeeklyEvents')
 PTOlist = PTOsheet.worksheet_by_title("Formatted Data")
 
@@ -79,6 +84,8 @@ async def on_ready():
     server = bot.get_guild(901724465476546571)
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
     print("Wolfie is Watching")
+    chan2 = bot.get_channel(1112127760740130876)
+    await chan2.send(f"Wolfie Has Restarted on Version {version}")
     #await main()
 
 class utils:
@@ -177,6 +184,39 @@ class utils:
         time = str(time[0] + ":" + time[1])
         print(time)
         return time
+
+    async def GetAcademicYear() -> str:
+        currentMonth = datetime.now().month
+        currentYear = datetime.now().year
+        year = int(str(currentYear)[2:])
+        if int(currentMonth) > 7: yearstr = str(year) + "-" + str(year + 1)
+        else: yearstr = str(year-1) + "-" + str(year)
+        return yearstr
+
+    @tasks.loop(minutes=60)
+    async def AutoUpdate() -> bool:
+        timecheck1 = await utils.TimeCheck('3:00am','3:15am')
+        timecheck2 = await utils.TimeCheck('4:00am','4:15am')
+        if timecheck1 == False and timecheck2 == False:
+            print("Looking For Updates...")
+            nl = '\n'
+            qint = random.randint(1,2000)
+            update_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/bot.py?v={qint}"
+            version_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/version.txt?v={qint}"
+            r = requests.get(update_url,allow_redirects=True)
+            v = requests.get(version_url,allow_redirects=True)
+            ver = v.text.replace('"',"").replace(nl,"").split(" = ")[1]
+            if ver != version:
+                print("Update Available, Downloading...")
+                chan2 = bot.get_channel(1112127760740130876)
+                await chan2.send(f"Update Found! Automatically Updating to Version {ver}")
+                open('bot.py','wb').write(r.content)
+                try:
+                    os.execv(__file__,sys.argv)
+                except:
+                    os.execv(sys.executable, ['python'] + sys.argv)
+            else:
+                print("Alpha Wolf is Up to Date!")
 
 class gcal:
     async def create_event(title:str,date:str,start_time:str,end_time:str,signups:str,description:str,end_date:str="NA",calSelect="gc"):
@@ -442,6 +482,8 @@ async def main():
     #await WolfieAutomation.DailyCheck()
     #await WolfieAutomation.Check4Requests()
     #await gcal.create_event("test","11/10/2022","12:00","14:00","James Boglioli, Maddie Smyth","test")
+    #await utils.GetAcademicYear()
+    #await utils.AutoUpdate()
     print("Testing has finished")
 
 #try:
