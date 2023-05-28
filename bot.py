@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.0'
+version = f'1.0.1'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -297,7 +297,7 @@ class gcal:
                 except:
                     dtdate = datetime.strptime("04/10/2002", "%m/%d/%Y")
                     print("Not A Date")
-                if datetime.strptime(today,"%m/%d/%Y") <= dtdate:
+                if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
                     title = wolfie_schedule.cell(f"C{x}").value
                     location = wolfie_schedule.cell(f"D{x}").value
                     start_time = str(await utils.Convert24h(str(wolfie_schedule.cell(f"E{x}").value)))
@@ -328,7 +328,7 @@ class gcal:
                     else: confirm = "No" 
                     description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
                     #Begin to handle the events
-                    if cal_created.lower() != "x":
+                    if cal_created.lower() != "x": # The event has not been created yet
                         pause = 11
                         await gcal.create_event(title,date,start_time,end_time,signups, description)
                         wolfie_schedule.update_value(f"O{x}","X")
@@ -338,7 +338,7 @@ class gcal:
                         wolfie_schedule.update_value(f"S{x}",spotter)
                         wolfie_schedule.update_value(f"T{x}",additional_info)
                         wolfie_schedule.update_value(f"U{x}",confirmed)
-                    elif wolfie_schedule.cell(f"A{x}").value != "":
+                    elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
                         pause = 19
                         print(f"'{title}'")
                         print(f"'{date}'")
@@ -346,17 +346,17 @@ class gcal:
                         date = date.replace(" ","")
                         try:
                             myolddate = await utils.ZeropadDatetime("D",str(date))
-                            dtolddate = datetime.strptime(mydate,"%m/%d/%Y")
+                            dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
                         except:
                             dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                        editevt = gc.get_events(datetime.strptime(date, "%m/%d/%Y"),datetime.strptime(date, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                        editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
                         m = 0
                         for event in editevt:
                             edevt = event
                             m += 1
                         if m == 0:
                             olddate = olddate.replace(" ","")
-                            editevt = gc.get_events(datetime.strptime(olddate, "%m/%d/%Y"),datetime.strptime(olddate, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                            editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
                             for event in editevt:
                                 edevt = event
                         try:        
@@ -375,6 +375,7 @@ class gcal:
                         z = 0
                         for chk in chklst:
                             if chk == False:
+                                print(f"check {chk}")
                                 edited = False
                                 if z == 0 or z == 1:
                                     edevt.start = await utils.DateTimeCombine(date,start_time)
@@ -407,11 +408,11 @@ class gcal:
                                             edevt = event
                                     print(edevt)
                             z += 1
-                elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate:
+                elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
                     pause = 2
                     wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
                     print("Hid Row!")
-                elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "":
+                elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
                     pause = 3
                     y = False
                 print(f"{pause}s pause")
