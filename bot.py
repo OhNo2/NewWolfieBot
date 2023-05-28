@@ -47,6 +47,14 @@ event_confirmation_days = 2
 DISCORD_TOKEN = open("bot_token.txt","r")
 DISCORD_TOKEN = DISCORD_TOKEN.read()
 
+DEV_TOKEN = ""
+try:
+    DEV = open("dev_token.txt","r")
+    DEV_TOKEN = DEV.read()
+except:
+    DEV_TOKEN = "False"
+
+
 TOKEN = DISCORD_TOKEN
 description = f'Slash Commands Supported - V {version} By: {signature}'
 
@@ -79,7 +87,7 @@ monthvar = getOSdatetime()
 
 @bot.event
 async def on_ready():
-    utils.AutoUpdate.start()
+    if DEV_TOKEN == "False": utils.AutoUpdate.start()
     gcal.iterate_events.start()
     gcal.timeoff.start()
     server = bot.get_guild(901724465476546571)
