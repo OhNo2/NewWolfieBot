@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.1'
+version = f'1.0.2'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -88,6 +88,7 @@ monthvar = getOSdatetime()
 @bot.event
 async def on_ready():
     if DEV_TOKEN == "False": utils.AutoUpdate.start()
+    else: print("This is a DEV environment")
     gcal.iterate_events.start()
     gcal.timeoff.start()
     server = bot.get_guild(901724465476546571)
@@ -339,6 +340,14 @@ class gcal:
                     if cal_created.lower() != "x": # The event has not been created yet
                         pause = 11
                         await gcal.create_event(title,date,start_time,end_time,signups, description)
+                        embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                        embed.add_field(name="Event Date:",value=date)
+                        embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
+                        embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
+                        if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
+                        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for acurate info")
+                        sheetchan = bot.get_channel(902627884995321937)
+                        await sheetchan.send(embed=embed)
                         wolfie_schedule.update_value(f"O{x}","X")
                         wolfie_schedule.update_value(f"P{x}",f"{date}")
                         wolfie_schedule.update_value(f"Q{x}",start_time)
@@ -483,6 +492,23 @@ class discord_cmds:
         embed=discord.Embed(title=text,url=link)
         await ctx.send(embed=embed)
 
+    @bot.command(pass_contect=True)
+    async def TEST(ctx):
+        title = "NTSP Event 1"
+        location = "SB Union 205"
+        date = "06/07/2023"
+        start_time = "9:45 AM"
+        end_time = "10:10 AM"
+        requestor = "Megan.DiGioia@stonybrook.edu"
+        additional_info = "12-1 is the preferred slot. You are only required to attend for 1h"
+
+        embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+        embed.add_field(name="Event Date:",value=date)
+        embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
+        embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
+        if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
+        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for acurate info")
+        await ctx.send(embed=embed)
 async def main():
     print("This is for testing only! Beginning Testing...")
     #await WolfieAutomation.LookForNewEmails()
