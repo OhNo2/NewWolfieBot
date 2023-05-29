@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.3'
+version = f'1.0.4'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -272,7 +272,7 @@ class gcal:
         nl = '\n'
         today = datetime.now().strftime("%m/%d/%Y")
         timecheck = await utils.TimeCheck('3:00am','3:15am')
-        #timecheck = True
+        timecheck = True
         if timecheck == True:
             # Get list of current events to check events against
             #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -294,6 +294,10 @@ class gcal:
             #print(str_event_lst)
             # Begin checking the spreadsheet for current events
             x = 0; y = True
+            unf_evt = discord.Embed(title="Unfilled Events Eligible for Assigmnet",description=datetime.now().strftime("%m/%d/%Y"),url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+            wk_unf_evts = ""
+            wk_unf = 1
+            unf = False
             while y == True:
                 pause = 3
                 x += 1
@@ -309,8 +313,10 @@ class gcal:
                 if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
                     title = wolfie_schedule.cell(f"C{x}").value
                     location = wolfie_schedule.cell(f"D{x}").value
-                    start_time = str(await utils.Convert24h(str(wolfie_schedule.cell(f"E{x}").value)))
-                    end_time = str(await utils.Convert24h(str(wolfie_schedule.cell(f"F{x}").value)))
+                    stime = wolfie_schedule.cell(f"E{x}").value
+                    start_time = str(await utils.Convert24h(str(stime)))
+                    etime = wolfie_schedule.cell(f"F{x}").value
+                    end_time = str(await utils.Convert24h(str(etime)))
                     wolfie = wolfie_schedule.cell(f"I{x}").value
                     spotter = wolfie_schedule.cell(f"J{x}").value
                     requestor = wolfie_schedule.cell(f"K{x}").value
@@ -345,7 +351,7 @@ class gcal:
                         embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
                         embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
                         if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
-                        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for acurate info")
+                        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
                         sheetchan = bot.get_channel(902627884995321937)
                         await sheetchan.send(embed=embed)
                         wolfie_schedule.update_value(f"O{x}","X")
@@ -425,6 +431,35 @@ class gcal:
                                             edevt = event
                                     print(edevt)
                             z += 1
+                        if dtdate <= datetime.now() + timedelta(days=7):
+                            desc = f"{date}: {start_time}-{end_time}"
+                            if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
+                            elif wolfie == "": unf_evt.add_field(name=f'{title} - Wolfie Required',value=desc,inline=False)
+                            elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
+                            if wolfie == "" or spotter == "": unf = True
+                        weekday = datetime.today().weekday()
+                        weekday = 6
+                        if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15):
+                            wkday = dtdate.weekday()
+                            if wkday == 0: wkday = "Mo"
+                            elif wkday == 1: wkday = "Tu"
+                            elif wkday == 2: wkday = "We"
+                            elif wkday == 3: wkday = "Th"
+                            elif wkday == 4: wkday = "Fr"
+                            elif wkday == 5: wkday = "Sa"
+                            elif wkday == 6: wkday = "Su"
+                            truncdat = dtdate.strftime("%m/%d")
+                            sstime = stime.lower().replace(" ","")
+                            eetime = etime.lower().replace(" ","")
+                            if len(sstime) < 7: sstime = "0" + sstime
+                            if len(eetime) < 7: eetime = "0" + eetime
+                            evt = f"{wk_unf}. {wkday} {truncdat} @ {sstime} - {eetime} "
+                            if wolfie == "" and spotter == "":evt = evt + "(1x W, 1x S)"
+                            elif wolfie == "": evt = evt + "(1x W)"
+                            elif spotter == "": evt = evt + "(1x S)"
+                            evt = evt + nl
+                            wk_unf_evts = wk_unf_evts + evt
+                            wk_unf += 1
                 elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
                     pause = 2
                     wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
@@ -435,6 +470,11 @@ class gcal:
                 print(f"{pause}s pause")
                 await asyncio.sleep(pause)
             chan = bot.get_channel(902627543864205342)
+            chan2 = bot.get_channel(1074749682414272652)
+            if unf == True: await chan2.send(embed=unf_evt)
+            if wk_unf > 1:
+                wk_unf_embd = discord.Embed(title="Unfilled Events In The Coming Two Weeks",description=f"```{wk_unf_evts}```",url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                await chan2.send(embed=wk_unf_embd)
             await chan.send("Event calendar is now up-to-date!")
             print("Search Completed")
         else:
@@ -485,6 +525,16 @@ class gcal:
             chan2 = bot.get_channel(902627543864205342)
             await chan2.send("PTO calendar is now up-to-date!")
         else: print("Timecheck False")
+
+class management_utils:
+    @tasks.loop(minutes=15)
+    async def weekly_email():
+        pass
+
+    @tasks.loop(minutes=15)
+    async def unfilled_events(wolfie="",spotter="",lst=[],finished=False):
+        pass
+
 
 class discord_cmds:
     @bot.command(pass_context=True)
