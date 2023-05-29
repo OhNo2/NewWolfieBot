@@ -492,23 +492,6 @@ class discord_cmds:
         embed=discord.Embed(title=text,url=link)
         await ctx.send(embed=embed)
 
-    @bot.command(pass_context=True)
-    async def TEST(ctx):
-        title = "NTSP Event 1"
-        location = "SB Union 205"
-        date = "06/07/2023"
-        start_time = "9:45 AM"
-        end_time = "10:10 AM"
-        requestor = "Megan.DiGioia@stonybrook.edu"
-        additional_info = "12-1 is the preferred slot. You are only required to attend for 1h"
-        embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
-        embed.add_field(name="Event Date:",value=date)
-        embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
-        embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
-        if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
-        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for acurate info")
-        await ctx.send(embed=embed)
-
 async def main():
     print("This is for testing only! Beginning Testing...")
     #await WolfieAutomation.LookForNewEmails()
