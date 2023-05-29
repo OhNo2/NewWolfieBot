@@ -272,7 +272,7 @@ class gcal:
         nl = '\n'
         today = datetime.now().strftime("%m/%d/%Y")
         timecheck = await utils.TimeCheck('3:00am','3:15am')
-        timecheck = True
+        #timecheck = True
         if timecheck == True:
             # Get list of current events to check events against
             #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -438,8 +438,7 @@ class gcal:
                             elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
                             if wolfie == "" or spotter == "": unf = True
                         weekday = datetime.today().weekday()
-                        weekday = 6
-                        if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15):
+                        if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15) and (wolfie == "" or spotter == ""):
                             wkday = dtdate.weekday()
                             if wkday == 0: wkday = "Mo"
                             elif wkday == 1: wkday = "Tu"
