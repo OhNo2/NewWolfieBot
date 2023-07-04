@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.5'
+version = f'1.0.6'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -272,7 +272,7 @@ class gcal:
         nl = '\n'
         today = datetime.now().strftime("%m/%d/%Y")
         timecheck = await utils.TimeCheck('3:00am','3:15am')
-        timecheck = True
+        #timecheck = True
         if timecheck == True:
             # Get list of current events to check events against
             #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
