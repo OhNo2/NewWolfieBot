@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.4'
+version = f'1.0.5'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -272,7 +272,7 @@ class gcal:
         nl = '\n'
         today = datetime.now().strftime("%m/%d/%Y")
         timecheck = await utils.TimeCheck('3:00am','3:15am')
-        #timecheck = True
+        timecheck = True
         if timecheck == True:
             # Get list of current events to check events against
             #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -461,8 +461,18 @@ class gcal:
                             wk_unf += 1
                 elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
                     pause = 2
-                    wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
-                    print("Hid Row!")
+                    sheet = await utils.GetAcademicYear()
+                    sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
+                    shrow = int(sheet.cell("AD1").value)
+                    columns = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n"]
+                    pause += 2
+                    for col in columns:
+                        sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
+                        await asyncio.sleep(1)
+                    wolfie_schedule.delete_rows(x)
+                    x -= 1
+                    #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
+                    print("Moved Row")
                 elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
                     pause = 3
                     y = False
