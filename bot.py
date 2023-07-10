@@ -5,7 +5,7 @@ from itertools import permutations; import json; import random; import time; fro
 from datetime import timedelta; import asyncio
 from typing import final; import discord
 from discord import guild
-import pygsheets
+import pygsheets; import traceback
 from pygsheets.datarange import DataRange
 import requests; from discord import File, User, Webhook
 from discord.ext import commands, tasks; from discord.ext.commands import Bot, Cog, CommandNotFound, Context
@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.6'
+version = f'1.0.7'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -86,16 +86,19 @@ def getOSdatetime() -> str:
 monthvar = getOSdatetime()
 
 @bot.event
-async def on_ready():
-    if DEV_TOKEN == "False": utils.AutoUpdate.start()
-    else: print("This is a DEV environment")
-    gcal.iterate_events.start()
-    gcal.timeoff.start()
-    server = bot.get_guild(901724465476546571)
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
-    print("Wolfie is Watching")
-    chan2 = bot.get_channel(1112127760740130876)
-    await chan2.send(f"Wolfie Has Restarted on Version {version}")
+async def on_ready(): #Has error handling
+    try:
+        if DEV_TOKEN == "False": utils.AutoUpdate.start()
+        else: print("This is a DEV environment")
+        gcal.iterate_events.start()
+        gcal.timeoff.start()
+        server = bot.get_guild(901724465476546571)
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
+        print("Wolfie is Watching")
+        chan2 = bot.get_channel(1112127760740130876)
+        await chan2.send(f"Wolfie Has Restarted on Version {version}")
+    except Exception:
+        await utils.ErrorHandler(Exception,"Startup")
     #await main()
 
 class utils:
@@ -203,6 +206,14 @@ class utils:
         else: yearstr = str(year-1) + "-" + str(year)
         return yearstr
 
+    async def ErrorHandler(exception,task):
+        # Function works as follows:
+        # try: 1/0
+        # except Exception: await utils.ErrorHandler(Exception,"Current Function") 
+        e = traceback.format_exc(1900)
+        chan = bot.get_channel(1112127760740130876)
+        await chan.send(f"***Error Detected in {task}:***```{e}```")
+
     @tasks.loop(minutes=60)
     async def AutoUpdate() -> bool:
         timecheck1 = await utils.TimeCheck('3:00am','3:15am')
@@ -268,272 +279,276 @@ class gcal:
 
     @tasks.loop(minutes=15)
     async def iterate_events():
-        print("Starting Search...")
-        nl = '\n'
-        today = datetime.now().strftime("%m/%d/%Y")
-        timecheck = await utils.TimeCheck('3:00am','3:15am')
-        #timecheck = True
-        if timecheck == True:
-            # Get list of current events to check events against
-            #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
-            #event_lst = list(events)
-            #str_event_lst = []
-            #for event in event_lst:
-            #    event = str(event).split(" - ")
-            #    sublst = event[0].split(" ")
-            #    sublst[1] = sublst[1].split("-")[0]
-            #    sublst[0] = sublst[0].split("-")
-            #    sublst[0] = str(sublst[0][1] + "/" + sublst[0][2] + "/" + sublst[0][0])
-            #    sublst[0] = await utils.ZeropadDatetime("D",sublst[0])
-            #    sublst[1] = sublst[1].split(":"); sublst[1] = str(sublst[1][0]) + ":" + str(sublst[1][1])
-            #    l = [event[1],sublst[0],sublst[1]]
-            #    print(l)
-            #    str_event_lst.append(l)
-            #print(events)
-            #print(event_lst)
-            #print(str_event_lst)
-            # Begin checking the spreadsheet for current events
-            x = 0; y = True
-            unf_evt = discord.Embed(title="Unfilled Events Eligible for Assigmnet",description=datetime.now().strftime("%m/%d/%Y"),url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
-            wk_unf_evts = ""
-            wk_unf = 1
-            unf = False
-            while y == True:
-                pause = 3
-                x += 1
-                print(x)
-                date = str(wolfie_schedule.cell(f"B{x}").value)
-                date = date.replace(" ","")
-                try:
-                    mydate = await utils.ZeropadDatetime("D",str(date))
-                    dtdate = datetime.strptime(mydate,"%m/%d/%Y")
-                except:
-                    dtdate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                    print("Not A Date")
-                if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
-                    title = wolfie_schedule.cell(f"C{x}").value
-                    location = wolfie_schedule.cell(f"D{x}").value
-                    stime = wolfie_schedule.cell(f"E{x}").value
-                    start_time = str(await utils.Convert24h(str(stime)))
-                    etime = wolfie_schedule.cell(f"F{x}").value
-                    end_time = str(await utils.Convert24h(str(etime)))
-                    wolfie = wolfie_schedule.cell(f"I{x}").value
-                    spotter = wolfie_schedule.cell(f"J{x}").value
-                    requestor = wolfie_schedule.cell(f"K{x}").value
-                    confirmed = wolfie_schedule.cell(f"M{x}").value
-                    additional_info = wolfie_schedule.cell(f"N{x}").value
-                    cal_created = wolfie_schedule.cell(f"O{x}").value
-                    signups = wolfie + " " + spotter
-                    signups = signups.replace(nl," ").split(" ")
-                    signups  = [i for i in signups if i]
-                    z = ""
-                    xx = len(signups)
-                    xxx = 0
-                    while xxx < xx:
-                        if xxx%2 == 0: z = z + signups[xxx] + " "
-                        elif xxx != xx - 1: z = z + signups[xxx] + ", "
-                        else: z = z + signups[xxx]
-                        xxx += 1
-                    signups = z
-                    print(signups)
-                    if confirmed == "--": confirm = "Yes"
-                    elif confirmed == "": confirm = "No"
-                    elif confirmed == "x": confirm = "No"
-                    elif "/" in confirmed: confirm = "Yes"
-                    else: confirm = "No" 
-                    description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
-                    #Begin to handle the events
-                    if cal_created.lower() != "x": # The event has not been created yet
-                        pause = 11
-                        await gcal.create_event(title,date,start_time,end_time,signups, description)
-                        embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
-                        embed.add_field(name="Event Date:",value=date)
-                        embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
-                        embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
-                        if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
-                        embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
-                        sheetchan = bot.get_channel(902627884995321937)
-                        await sheetchan.send(embed=embed)
-                        wolfie_schedule.update_value(f"O{x}","X")
-                        wolfie_schedule.update_value(f"P{x}",f"{date}")
-                        wolfie_schedule.update_value(f"Q{x}",start_time)
-                        wolfie_schedule.update_value(f"R{x}",wolfie)
-                        wolfie_schedule.update_value(f"S{x}",spotter)
-                        wolfie_schedule.update_value(f"T{x}",additional_info)
-                        wolfie_schedule.update_value(f"U{x}",confirmed)
-                    elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
-                        pause = 19
-                        print(f"'{title}'")
-                        print(f"'{date}'")
-                        olddate = wolfie_schedule.cell(f"P{x}").value
-                        date = date.replace(" ","")
-                        try:
-                            myolddate = await utils.ZeropadDatetime("D",str(date))
-                            dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
-                        except:
-                            dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                        editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
-                        m = 0
-                        for event in editevt:
-                            edevt = event
-                            m += 1
-                        if m == 0:
-                            olddate = olddate.replace(" ","")
+        try:
+            print("Starting Search...")
+            nl = '\n'
+            today = datetime.now().strftime("%m/%d/%Y")
+            timecheck = await utils.TimeCheck('3:00am','3:15am')
+            #timecheck = True
+            if timecheck == True:
+                # Get list of current events to check events against
+                #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
+                #event_lst = list(events)
+                #str_event_lst = []
+                #for event in event_lst:
+                #    event = str(event).split(" - ")
+                #    sublst = event[0].split(" ")
+                #    sublst[1] = sublst[1].split("-")[0]
+                #    sublst[0] = sublst[0].split("-")
+                #    sublst[0] = str(sublst[0][1] + "/" + sublst[0][2] + "/" + sublst[0][0])
+                #    sublst[0] = await utils.ZeropadDatetime("D",sublst[0])
+                #    sublst[1] = sublst[1].split(":"); sublst[1] = str(sublst[1][0]) + ":" + str(sublst[1][1])
+                #    l = [event[1],sublst[0],sublst[1]]
+                #    print(l)
+                #    str_event_lst.append(l)
+                #print(events)
+                #print(event_lst)
+                #print(str_event_lst)
+                # Begin checking the spreadsheet for current events
+                x = 0; y = True
+                unf_evt = discord.Embed(title="Unfilled Events Eligible for Assigmnet",description=datetime.now().strftime("%m/%d/%Y"),url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                wk_unf_evts = ""
+                wk_unf = 1
+                unf = False
+                while y == True:
+                    pause = 3
+                    x += 1
+                    print(x)
+                    date = str(wolfie_schedule.cell(f"B{x}").value)
+                    date = date.replace(" ","")
+                    try:
+                        mydate = await utils.ZeropadDatetime("D",str(date))
+                        dtdate = datetime.strptime(mydate,"%m/%d/%Y")
+                    except:
+                        dtdate = datetime.strptime("04/10/2002", "%m/%d/%Y")
+                        print("Not A Date")
+                    if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
+                        title = wolfie_schedule.cell(f"C{x}").value
+                        location = wolfie_schedule.cell(f"D{x}").value
+                        stime = wolfie_schedule.cell(f"E{x}").value
+                        start_time = str(await utils.Convert24h(str(stime)))
+                        etime = wolfie_schedule.cell(f"F{x}").value
+                        end_time = str(await utils.Convert24h(str(etime)))
+                        wolfie = wolfie_schedule.cell(f"I{x}").value
+                        spotter = wolfie_schedule.cell(f"J{x}").value
+                        requestor = wolfie_schedule.cell(f"K{x}").value
+                        confirmed = wolfie_schedule.cell(f"M{x}").value
+                        additional_info = wolfie_schedule.cell(f"N{x}").value
+                        cal_created = wolfie_schedule.cell(f"O{x}").value
+                        signups = wolfie + " " + spotter
+                        signups = signups.replace(nl," ").split(" ")
+                        signups  = [i for i in signups if i]
+                        z = ""
+                        xx = len(signups)
+                        xxx = 0
+                        while xxx < xx:
+                            if xxx%2 == 0: z = z + signups[xxx] + " "
+                            elif xxx != xx - 1: z = z + signups[xxx] + ", "
+                            else: z = z + signups[xxx]
+                            xxx += 1
+                        signups = z
+                        print(signups)
+                        if confirmed == "--": confirm = "Yes"
+                        elif confirmed == "": confirm = "No"
+                        elif confirmed == "x": confirm = "No"
+                        elif "/" in confirmed: confirm = "Yes"
+                        else: confirm = "No" 
+                        description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
+                        #Begin to handle the events
+                        if cal_created.lower() != "x": # The event has not been created yet
+                            pause = 11
+                            await gcal.create_event(title,date,start_time,end_time,signups, description)
+                            embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                            embed.add_field(name="Event Date:",value=date)
+                            embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
+                            embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
+                            if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
+                            embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
+                            sheetchan = bot.get_channel(902627884995321937)
+                            await sheetchan.send(embed=embed)
+                            wolfie_schedule.update_value(f"O{x}","X")
+                            wolfie_schedule.update_value(f"P{x}",f"{date}")
+                            wolfie_schedule.update_value(f"Q{x}",start_time)
+                            wolfie_schedule.update_value(f"R{x}",wolfie)
+                            wolfie_schedule.update_value(f"S{x}",spotter)
+                            wolfie_schedule.update_value(f"T{x}",additional_info)
+                            wolfie_schedule.update_value(f"U{x}",confirmed)
+                        elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
+                            pause = 19
+                            print(f"'{title}'")
+                            print(f"'{date}'")
+                            olddate = wolfie_schedule.cell(f"P{x}").value
+                            date = date.replace(" ","")
+                            try:
+                                myolddate = await utils.ZeropadDatetime("D",str(date))
+                                dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
+                            except:
+                                dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
                             editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                            m = 0
                             for event in editevt:
                                 edevt = event
-                        try:        
-                            print(edevt)
-                        except:
-                            wolfie_schedule.update_value(f"O{x}","")
-                            pause += 1
-                            continue
-                        datechk = bool(wolfie_schedule.cell(f"P{x}").value == date)
-                        startchk = bool(wolfie_schedule.cell(f"Q{x}").value == start_time)
-                        wolfchk = bool(wolfie_schedule.cell(f"R{x}").value == wolfie)
-                        spotchk = bool(wolfie_schedule.cell(f"S{x}").value == spotter)
-                        addchk = bool(wolfie_schedule.cell(f"T{x}").value == additional_info)
-                        confchk = bool(wolfie_schedule.cell(f"U{x}").value == confirmed)
-                        chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
-                        z = 0
-                        for chk in chklst:
-                            if chk == False:
-                                print(f"check {chk}")
-                                edited = False
-                                if z == 0 or z == 1:
-                                    edevt.start = await utils.DateTimeCombine(date,start_time)
-                                    edevt.end = await utils.DateTimeCombine(date,end_time)
-                                    wolfie_schedule.update_value(f"P{x}",f"{date}")
-                                    wolfie_schedule.update_value(f"Q{x}",start_time)
-                                    edited = True
-                                elif z == 2 or z == 3:
-                                    edevt.location = signups
-                                    wolfie_schedule.update_value(f"R{x}",wolfie)
-                                    wolfie_schedule.update_value(f"S{x}",spotter)
-                                    edited = True
-                                elif z == 4 or z == 5:
-                                    edevt.description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
-                                    wolfie_schedule.update_value(f"T{x}",additional_info)
-                                    wolfie_schedule.update_value(f"U{x}",confirmed)
-                                    edited = True
-                                gc.update_event(edevt)
-                                print("Event Edited")
-                                if edited == True:
-                                    editevt = gc.get_events(datetime.strptime(date, "%m/%d/%Y"),datetime.strptime(date, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
-                                    m = 0
-                                    for event in editevt:
-                                        edevt = event
-                                        m += 1
-                                    if m == 0:
-                                        olddate = olddate.replace(" ","")
-                                        editevt = gc.get_events(datetime.strptime(olddate, "%m/%d/%Y"),datetime.strptime(olddate, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                                m += 1
+                            if m == 0:
+                                olddate = olddate.replace(" ","")
+                                editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                for event in editevt:
+                                    edevt = event
+                            try:        
+                                print(edevt)
+                            except:
+                                wolfie_schedule.update_value(f"O{x}","")
+                                pause += 1
+                                continue
+                            datechk = bool(wolfie_schedule.cell(f"P{x}").value == date)
+                            startchk = bool(wolfie_schedule.cell(f"Q{x}").value == start_time)
+                            wolfchk = bool(wolfie_schedule.cell(f"R{x}").value == wolfie)
+                            spotchk = bool(wolfie_schedule.cell(f"S{x}").value == spotter)
+                            addchk = bool(wolfie_schedule.cell(f"T{x}").value == additional_info)
+                            confchk = bool(wolfie_schedule.cell(f"U{x}").value == confirmed)
+                            chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
+                            z = 0
+                            for chk in chklst:
+                                if chk == False:
+                                    print(f"check {chk}")
+                                    edited = False
+                                    if z == 0 or z == 1:
+                                        edevt.start = await utils.DateTimeCombine(date,start_time)
+                                        edevt.end = await utils.DateTimeCombine(date,end_time)
+                                        wolfie_schedule.update_value(f"P{x}",f"{date}")
+                                        wolfie_schedule.update_value(f"Q{x}",start_time)
+                                        edited = True
+                                    elif z == 2 or z == 3:
+                                        edevt.location = signups
+                                        wolfie_schedule.update_value(f"R{x}",wolfie)
+                                        wolfie_schedule.update_value(f"S{x}",spotter)
+                                        edited = True
+                                    elif z == 4 or z == 5:
+                                        edevt.description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
+                                        wolfie_schedule.update_value(f"T{x}",additional_info)
+                                        wolfie_schedule.update_value(f"U{x}",confirmed)
+                                        edited = True
+                                    gc.update_event(edevt)
+                                    print("Event Edited")
+                                    if edited == True:
+                                        editevt = gc.get_events(datetime.strptime(date, "%m/%d/%Y"),datetime.strptime(date, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                                        m = 0
                                         for event in editevt:
                                             edevt = event
-                                    print(edevt)
-                            z += 1
-                        if dtdate <= datetime.now() + timedelta(days=7):
-                            desc = f"{date}: {start_time}-{end_time}"
-                            if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
-                            elif wolfie == "": unf_evt.add_field(name=f'{title} - Wolfie Required',value=desc,inline=False)
-                            elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
-                            if wolfie == "" or spotter == "": unf = True
-                        weekday = datetime.today().weekday()
-                        if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15) and (wolfie == "" or spotter == ""):
-                            wkday = dtdate.weekday()
-                            if wkday == 0: wkday = "Mo"
-                            elif wkday == 1: wkday = "Tu"
-                            elif wkday == 2: wkday = "We"
-                            elif wkday == 3: wkday = "Th"
-                            elif wkday == 4: wkday = "Fr"
-                            elif wkday == 5: wkday = "Sa"
-                            elif wkday == 6: wkday = "Su"
-                            truncdat = dtdate.strftime("%m/%d")
-                            sstime = stime.lower().replace(" ","")
-                            eetime = etime.lower().replace(" ","")
-                            if len(sstime) < 7: sstime = "0" + sstime
-                            if len(eetime) < 7: eetime = "0" + eetime
-                            evt = f"{wk_unf}. {wkday} {truncdat} @ {sstime} - {eetime} "
-                            if wolfie == "" and spotter == "":evt = evt + "(1x W, 1x S)"
-                            elif wolfie == "": evt = evt + "(1x W)"
-                            elif spotter == "": evt = evt + "(1x S)"
-                            evt = evt + nl
-                            wk_unf_evts = wk_unf_evts + evt
-                            wk_unf += 1
-                elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
-                    pause = 2
-                    sheet = await utils.GetAcademicYear()
-                    sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
-                    shrow = int(sheet.cell("AD1").value)
-                    columns = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n"]
-                    pause += 2
-                    for col in columns:
-                        sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
-                        await asyncio.sleep(1)
-                    wolfie_schedule.delete_rows(x)
-                    x -= 1
-                    #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
-                    print("Moved Row")
-                elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
-                    pause = 3
-                    y = False
-                print(f"{pause}s pause")
-                await asyncio.sleep(pause)
-            chan = bot.get_channel(902627543864205342)
-            chan2 = bot.get_channel(1074749682414272652)
-            if unf == True: await chan2.send(embed=unf_evt)
-            if wk_unf > 1:
-                wk_unf_embd = discord.Embed(title="Unfilled Events In The Coming Two Weeks",description=f"```{wk_unf_evts}```",url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
-                await chan2.send(embed=wk_unf_embd)
-            await chan.send("Event calendar is now up-to-date!")
-            print("Search Completed")
-        else:
-            print("Timecheck is False")
+                                            m += 1
+                                        if m == 0:
+                                            olddate = olddate.replace(" ","")
+                                            editevt = gc.get_events(datetime.strptime(olddate, "%m/%d/%Y"),datetime.strptime(olddate, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                                            for event in editevt:
+                                                edevt = event
+                                        print(edevt)
+                                z += 1
+                            if dtdate <= datetime.now() + timedelta(days=7):
+                                desc = f"{date}: {start_time}-{end_time}"
+                                if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
+                                elif wolfie == "": unf_evt.add_field(name=f'{title} - Wolfie Required',value=desc,inline=False)
+                                elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
+                                if wolfie == "" or spotter == "": unf = True
+                            weekday = datetime.today().weekday()
+                            if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15) and (wolfie == "" or spotter == ""):
+                                wkday = dtdate.weekday()
+                                if wkday == 0: wkday = "Mo"
+                                elif wkday == 1: wkday = "Tu"
+                                elif wkday == 2: wkday = "We"
+                                elif wkday == 3: wkday = "Th"
+                                elif wkday == 4: wkday = "Fr"
+                                elif wkday == 5: wkday = "Sa"
+                                elif wkday == 6: wkday = "Su"
+                                truncdat = dtdate.strftime("%m/%d")
+                                sstime = stime.lower().replace(" ","")
+                                eetime = etime.lower().replace(" ","")
+                                if len(sstime) < 7: sstime = "0" + sstime
+                                if len(eetime) < 7: eetime = "0" + eetime
+                                evt = f"{wk_unf}. {wkday} {truncdat} @ {sstime} - {eetime} "
+                                if wolfie == "" and spotter == "":evt = evt + "(1x W, 1x S)"
+                                elif wolfie == "": evt = evt + "(1x W)"
+                                elif spotter == "": evt = evt + "(1x S)"
+                                evt = evt + nl
+                                wk_unf_evts = wk_unf_evts + evt
+                                wk_unf += 1
+                    elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
+                        pause = 2
+                        sheet = await utils.GetAcademicYear()
+                        sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
+                        shrow = int(sheet.cell("AD1").value)
+                        columns = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n"]
+                        pause += 2
+                        for col in columns:
+                            sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
+                            await asyncio.sleep(1)
+                        wolfie_schedule.delete_rows(x)
+                        x -= 1
+                        #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
+                        print("Moved Row")
+                    elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
+                        pause = 3
+                        y = False
+                    print(f"{pause}s pause")
+                    await asyncio.sleep(pause)
+                chan = bot.get_channel(902627543864205342)
+                chan2 = bot.get_channel(1074749682414272652)
+                if unf == True: await chan2.send(embed=unf_evt)
+                if wk_unf > 1:
+                    wk_unf_embd = discord.Embed(title="Unfilled Events In The Coming Two Weeks",description=f"```{wk_unf_evts}```",url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                    await chan2.send(embed=wk_unf_embd)
+                await chan.send("Event calendar is now up-to-date!")
+                print("Search Completed")
+            else:
+                print("Timecheck is False")
+        except Exception: await utils.ErrorHandler(Exception,"Main Loop (iterate_events)")
 
     @tasks.loop(minutes=15)
     async def timeoff():
-        print("Checking Time Off")
-        nl = '\n'
-        chan = bot.get_channel(1074749595931906100)
-        today = datetime.now().strftime("%m/%d/%Y")
-        timecheck = await utils.TimeCheck('4:00am','4:15am')
-        #timecheck = True
-        if timecheck == True:
-            x = 1; y = True
-            while y == True:
-                pause = 2
-                x += 1
-                print(x)
-                name = str(PTOlist.cell(f"A{x}").value)
-                evtchk = str(PTOlist.cell(f"G{x}").value)
-                if name == "": break
-                elif evtchk != "": pass
-                elif evtchk == "": # Runs if there is no event created and a name
-                    pause += 5
-                    start_date = str(PTOlist.cell(f"B{x}").value)
-                    end_date = str(PTOlist.cell(f"D{x}").value)
-                    description = str(PTOlist.cell(f"F{x}").value)
-                    try:
-                        start_time = await utils.Convert24h(str(PTOlist.cell(f"C{x}").value))
-                    except:
-                        start_time = "All Day"
-                    try:
-                        end_time = await utils.Convert24h(str(PTOlist.cell(f"E{x}").value))
-                    except:
-                        end_time = "All Day"
-                    await gcal.create_event(f"Time Off - {name}",start_date,start_time,end_time,"",description,end_date,"pto")
-                    print(f"{name} has time-off added to calendar")
-                    PTOlist.update_value(f"G{x}","X")
-                    embed=discord.Embed(title=f'Time Off Request: {name}', color=0x00ff00)
-                    embed.add_field(name="Start Date/Time:", value=f"{start_date} - {start_time}", inline=False)
-                    embed.add_field(name="End Date/Time:", value=f"{end_date} - {end_time}", inline=False)
-                    embed.add_field(name="Reason For Time Off:",value=description,inline=False)
-                    await chan.send(embed=embed)
-                print(f"{pause}s pause")
-                await asyncio.sleep(pause)
-            print("All New PTO Updated")
-            chan2 = bot.get_channel(902627543864205342)
-            await chan2.send("PTO calendar is now up-to-date!")
-        else: print("Timecheck False")
+        try:
+            print("Checking Time Off")
+            nl = '\n'
+            chan = bot.get_channel(1074749595931906100)
+            today = datetime.now().strftime("%m/%d/%Y")
+            timecheck = await utils.TimeCheck('4:00am','4:15am')
+            #timecheck = True
+            if timecheck == True:
+                x = 1; y = True
+                while y == True:
+                    pause = 2
+                    x += 1
+                    print(x)
+                    name = str(PTOlist.cell(f"A{x}").value)
+                    evtchk = str(PTOlist.cell(f"G{x}").value)
+                    if name == "": break
+                    elif evtchk != "": pass
+                    elif evtchk == "": # Runs if there is no event created and a name
+                        pause += 5
+                        start_date = str(PTOlist.cell(f"B{x}").value)
+                        end_date = str(PTOlist.cell(f"D{x}").value)
+                        description = str(PTOlist.cell(f"F{x}").value)
+                        try:
+                            start_time = await utils.Convert24h(str(PTOlist.cell(f"C{x}").value))
+                        except:
+                            start_time = "All Day"
+                        try:
+                            end_time = await utils.Convert24h(str(PTOlist.cell(f"E{x}").value))
+                        except:
+                            end_time = "All Day"
+                        await gcal.create_event(f"Time Off - {name}",start_date,start_time,end_time,"",description,end_date,"pto")
+                        print(f"{name} has time-off added to calendar")
+                        PTOlist.update_value(f"G{x}","X")
+                        embed=discord.Embed(title=f'Time Off Request: {name}', color=0x00ff00)
+                        embed.add_field(name="Start Date/Time:", value=f"{start_date} - {start_time}", inline=False)
+                        embed.add_field(name="End Date/Time:", value=f"{end_date} - {end_time}", inline=False)
+                        embed.add_field(name="Reason For Time Off:",value=description,inline=False)
+                        await chan.send(embed=embed)
+                    print(f"{pause}s pause")
+                    await asyncio.sleep(pause)
+                print("All New PTO Updated")
+                chan2 = bot.get_channel(902627543864205342)
+                await chan2.send("PTO calendar is now up-to-date!")
+            else: print("Timecheck False")
+        except Exception: await utils.ErrorHandler(Exception,"Time Off Calendar")
 
 class management_utils:
     @tasks.loop(minutes=15)
