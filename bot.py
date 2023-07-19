@@ -35,7 +35,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.7'
+version = f'1.0.8'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -88,10 +88,10 @@ monthvar = getOSdatetime()
 @bot.event
 async def on_ready(): #Has error handling
     try:
-        if DEV_TOKEN == "False": utils.AutoUpdate.start()
+        if DEV_TOKEN == "False" and utils.AutoUpdate.is_running() == False: utils.AutoUpdate.start()
         else: print("This is a DEV environment")
-        gcal.iterate_events.start()
-        gcal.timeoff.start()
+        if gcal.iterate_events.is_running() == False: gcal.iterate_events.start()
+        if gcal.timeoff.is_running() == False: gcal.timeoff.start()
         server = bot.get_guild(901724465476546571)
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
         print("Wolfie is Watching")
