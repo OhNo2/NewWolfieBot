@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import csv; import os; import pickle; import re; import sys
 from itertools import permutations; import json; import random; import time; from datetime import datetime
@@ -14,6 +14,8 @@ from googleapiclient.discovery import build; from google_auth_oauthlib.flow impo
 from base64 import urlsafe_b64decode, urlsafe_b64encode; from email.mime.text import MIMEText; from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage; from email.mime.audio import MIMEAudio; from email.mime.base import MIMEBase; from mimetypes import guess_type as guess_mime_type
 from gcsa.google_calendar import GoogleCalendar; import gcsa.event; import gcsa.recurrence; from gcsa.calendar import CalendarListEntry; from gcsa.event import Event
+
+sys.stdout.reconfigure(line_buffering=True)
 
 # Request all access (permission to read/send/receive emails, manage the inbox, and more)
 SCOPES = ['https://mail.google.com/',]
@@ -35,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.8'
+version = f'1.0.9'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -283,7 +285,7 @@ class gcal:
             print("Starting Search...")
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
-            timecheck = await utils.TimeCheck('3:00am','3:15am')
+            timecheck = await utils.TimeCheck('12:00am','12:15am')
             #timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
