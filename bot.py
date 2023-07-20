@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.9'
+version = f'1.0.10'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -86,6 +86,7 @@ def getOSdatetime() -> str:
         return "-"
 
 monthvar = getOSdatetime()
+on_ready_status = {"status":0}
 
 @bot.event
 async def on_ready(): #Has error handling
@@ -98,7 +99,8 @@ async def on_ready(): #Has error handling
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
         print("Wolfie is Watching")
         chan2 = bot.get_channel(1112127760740130876)
-        await chan2.send(f"Wolfie Has Restarted on Version {version}")
+        if on_ready_status["status"] == 0: await chan2.send(f"Wolfie Has Restarted on Version {version}")
+        on_ready_status["status"] += 1
     except Exception:
         await utils.ErrorHandler(Exception,"Startup")
     #await main()
@@ -227,13 +229,17 @@ class utils:
             update_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/bot.py?v={qint}"
             version_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/version.txt?v={qint}"
             r = requests.get(update_url,allow_redirects=True)
+            asyncio.sleep(0)
             v = requests.get(version_url,allow_redirects=True)
+            asyncio.sleep(0)
             ver = v.text.replace('"',"").replace(nl,"").split(" = ")[1]
             if ver != version:
                 print("Update Available, Downloading...")
                 chan2 = bot.get_channel(1112127760740130876)
                 await chan2.send(f"Update Found! Automatically Updating to Version {ver}")
+                asyncio.sleep(0)
                 open('bot.py','wb').write(r.content)
+                asyncio.sleep(0)
                 try:
                     os.execv(__file__,sys.argv)
                 except:
