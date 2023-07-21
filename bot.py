@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.10'
+version = f'1.0.11'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -229,17 +229,17 @@ class utils:
             update_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/bot.py?v={qint}"
             version_url = f"https://raw.githubusercontent.com/OhNo2/NewWolfieBot/main/version.txt?v={qint}"
             r = requests.get(update_url,allow_redirects=True)
-            asyncio.sleep(0)
+            await asyncio.sleep(0)
             v = requests.get(version_url,allow_redirects=True)
-            asyncio.sleep(0)
+            await asyncio.sleep(0)
             ver = v.text.replace('"',"").replace(nl,"").split(" = ")[1]
             if ver != version:
                 print("Update Available, Downloading...")
                 chan2 = bot.get_channel(1112127760740130876)
                 await chan2.send(f"Update Found! Automatically Updating to Version {ver}")
-                asyncio.sleep(0)
+                await asyncio.sleep(0)
                 open('bot.py','wb').write(r.content)
-                asyncio.sleep(0)
+                await asyncio.sleep(0)
                 try:
                     os.execv(__file__,sys.argv)
                 except:
