@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.0.11'
+version = f'1.1.0'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -240,10 +240,11 @@ class utils:
                 await asyncio.sleep(0)
                 open('bot.py','wb').write(r.content)
                 await asyncio.sleep(0)
-                try:
-                    os.execv(__file__,sys.argv)
-                except:
-                    os.execv(sys.executable, ['python'] + sys.argv)
+                sys.exit()
+                #try:
+                #    os.execv(__file__,sys.argv)
+                #except:
+                #    os.execv(sys.executable, ['python'] + sys.argv)
             else:
                 print("Alpha Wolf is Up to Date!")
 
