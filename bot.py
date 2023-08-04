@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.0'
+version = f'1.1.1'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -488,8 +488,27 @@ class gcal:
                         columns = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n"]
                         pause += 2
                         for col in columns:
+                            if col == "k":
+                                requester = wolfie_schedule.cell(f"{col}{x}").value
+                                await asyncio.sleep(1)
+                            if col =="c":
+                                event_name = wolfie_schedule.cell(f"{col}{x}").value
+                                await asyncio.sleep(1)
                             sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
                             await asyncio.sleep(1)
+                        if "@" in requester:
+                            subject = f"Wolfie Satisfaction Form - {event_name}"
+                            requester_name = requester.split("@")[0].split(".")[0].capitalize()
+                            subject = subject.replace(" ","%20")
+                            email_date = dtdate.strftime("%Y-%m-%d")
+                            nl = '\n'
+                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0Ahttps://docs.google.com/forms/d/e/1FAIpQLSe2C0f17HLMSU1fEiuK93bUS65nh8UYuJ46YllXC4gnXpYzSA/viewform?usp=pp_url&entry.708486352={event_name}&entry.1669706537={email_date}"
+                            body = body.replace("%0D%0A",nl)
+                            email_link = f"{body}"
+                            email_embed = discord.Embed(title=f"Wolfie Satisfaction Form Email - {event_name}",description=f"send to: {requester}")
+                            email_chan = bot.get_channel(1137056916032475186)
+                            await email_chan.send(embed=email_embed)
+                            await email_chan.send(email_link)
                         wolfie_schedule.delete_rows(x)
                         x -= 1
                         #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
