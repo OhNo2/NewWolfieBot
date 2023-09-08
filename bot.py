@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.2'
+version = f'1.1.3'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -502,7 +502,7 @@ class gcal:
                             subject = subject.replace(" ","%20")
                             email_date = dtdate.strftime("%Y-%m-%d")
                             nl = '\n'
-                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0Ahttps://docs.google.com/forms/d/e/1FAIpQLSe2C0f17HLMSU1fEiuK93bUS65nh8UYuJ46YllXC4gnXpYzSA/viewform?usp=pp_url&entry.708486352={event_name.replace(" ","%20")}&entry.1669706537={email_date}"
+                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0Ahttps://docs.google.com/forms/d/e/1FAIpQLSe2C0f17HLMSU1fEiuK93bUS65nh8UYuJ46YllXC4gnXpYzSA/viewform?usp=pp_url&entry.708486352={event_name.replace(' ','%20')}&entry.1669706537={email_date}"
                             body = body.replace("%0D%0A",nl)
                             email_link = f"{body}"
                             email_embed = discord.Embed(title=f"Wolfie Satisfaction Form Email - {event_name}",description=f"send to: {requester}")
