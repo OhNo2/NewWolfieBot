@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.3'
+version = f'1.1.4'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -485,7 +485,7 @@ class gcal:
                         sheet = await utils.GetAcademicYear()
                         sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
                         shrow = int(sheet.cell("AD1").value)
-                        columns = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n"]
+                        columns = ["a","b","c","d","e","f","g","i","j","k","l","m","n"]
                         pause += 2
                         for col in columns:
                             if col == "k":
