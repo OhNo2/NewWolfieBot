@@ -37,7 +37,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.4'
+version = f'1.1.5'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -293,7 +293,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            #timecheck = True
+            timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -343,7 +343,7 @@ class gcal:
                         requestor = wolfie_schedule.cell(f"K{x}").value
                         confirmed = wolfie_schedule.cell(f"M{x}").value
                         additional_info = wolfie_schedule.cell(f"N{x}").value
-                        cal_created = wolfie_schedule.cell(f"O{x}").value
+                        cal_created = wolfie_schedule.cell(f"P{x}").value
                         signups = wolfie + " " + spotter
                         signups = signups.replace(nl," ").split(" ")
                         signups  = [i for i in signups if i]
@@ -375,18 +375,18 @@ class gcal:
                             embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
                             sheetchan = bot.get_channel(902627884995321937)
                             await sheetchan.send(embed=embed)
-                            wolfie_schedule.update_value(f"O{x}","X")
-                            wolfie_schedule.update_value(f"P{x}",f"{date}")
-                            wolfie_schedule.update_value(f"Q{x}",start_time)
-                            wolfie_schedule.update_value(f"R{x}",wolfie)
-                            wolfie_schedule.update_value(f"S{x}",spotter)
-                            wolfie_schedule.update_value(f"T{x}",additional_info)
-                            wolfie_schedule.update_value(f"U{x}",confirmed)
+                            wolfie_schedule.update_value(f"P{x}","X")
+                            wolfie_schedule.update_value(f"Q{x}",f"{date}")
+                            wolfie_schedule.update_value(f"R{x}",start_time)
+                            wolfie_schedule.update_value(f"S{x}",wolfie)
+                            wolfie_schedule.update_value(f"T{x}",spotter)
+                            wolfie_schedule.update_value(f"U{x}",additional_info)
+                            wolfie_schedule.update_value(f"V{x}",confirmed)
                         elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
                             pause = 19
                             print(f"'{title}'")
                             print(f"'{date}'")
-                            olddate = wolfie_schedule.cell(f"P{x}").value
+                            olddate = wolfie_schedule.cell(f"Q{x}").value
                             date = date.replace(" ","")
                             try:
                                 myolddate = await utils.ZeropadDatetime("D",str(date))
@@ -406,15 +406,15 @@ class gcal:
                             try:        
                                 print(edevt)
                             except:
-                                wolfie_schedule.update_value(f"O{x}","")
+                                wolfie_schedule.update_value(f"P{x}","")
                                 pause += 1
                                 continue
-                            datechk = bool(wolfie_schedule.cell(f"P{x}").value == date)
-                            startchk = bool(wolfie_schedule.cell(f"Q{x}").value == start_time)
-                            wolfchk = bool(wolfie_schedule.cell(f"R{x}").value == wolfie)
-                            spotchk = bool(wolfie_schedule.cell(f"S{x}").value == spotter)
-                            addchk = bool(wolfie_schedule.cell(f"T{x}").value == additional_info)
-                            confchk = bool(wolfie_schedule.cell(f"U{x}").value == confirmed)
+                            datechk = bool(wolfie_schedule.cell(f"Q{x}").value == date)
+                            startchk = bool(wolfie_schedule.cell(f"R{x}").value == start_time)
+                            wolfchk = bool(wolfie_schedule.cell(f"S{x}").value == wolfie)
+                            spotchk = bool(wolfie_schedule.cell(f"T{x}").value == spotter)
+                            addchk = bool(wolfie_schedule.cell(f"U{x}").value == additional_info)
+                            confchk = bool(wolfie_schedule.cell(f"V{x}").value == confirmed)
                             chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
                             z = 0
                             for chk in chklst:
@@ -424,18 +424,18 @@ class gcal:
                                     if z == 0 or z == 1:
                                         edevt.start = await utils.DateTimeCombine(date,start_time)
                                         edevt.end = await utils.DateTimeCombine(date,end_time)
-                                        wolfie_schedule.update_value(f"P{x}",f"{date}")
-                                        wolfie_schedule.update_value(f"Q{x}",start_time)
+                                        wolfie_schedule.update_value(f"Q{x}",f"{date}")
+                                        wolfie_schedule.update_value(f"R{x}",start_time)
                                         edited = True
                                     elif z == 2 or z == 3:
                                         edevt.location = signups
-                                        wolfie_schedule.update_value(f"R{x}",wolfie)
-                                        wolfie_schedule.update_value(f"S{x}",spotter)
+                                        wolfie_schedule.update_value(f"S{x}",wolfie)
+                                        wolfie_schedule.update_value(f"T{x}",spotter)
                                         edited = True
                                     elif z == 4 or z == 5:
                                         edevt.description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
-                                        wolfie_schedule.update_value(f"T{x}",additional_info)
-                                        wolfie_schedule.update_value(f"U{x}",confirmed)
+                                        wolfie_schedule.update_value(f"U{x}",additional_info)
+                                        wolfie_schedule.update_value(f"V{x}",confirmed)
                                         edited = True
                                     gc.update_event(edevt)
                                     print("Event Edited")
@@ -485,7 +485,7 @@ class gcal:
                         sheet = await utils.GetAcademicYear()
                         sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
                         shrow = int(sheet.cell("AD1").value)
-                        columns = ["a","b","c","d","e","f","g","i","j","k","l","m","n"]
+                        columns = ["a","b","c","d","e","f","g","i","j","k","l","m","n","o"]
                         pause += 2
                         for col in columns:
                             if col == "k":
