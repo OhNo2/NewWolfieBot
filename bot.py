@@ -541,6 +541,7 @@ class gcal:
             #timecheck = True
             if timecheck == True:
                 x = 1; y = True
+                x= int(PTOlist.cell(f"J1").value)
                 while y == True:
                     pause = 2
                     x += 1
