@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.8'
+version = f'1.1.9'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -257,6 +257,7 @@ class utils:
 
     async def createEventFolder(event_name,event_date,event_type="on_campus/off_campus",spotter=""):
         folder_name = f"{event_date} - {event_name}"
+        folder_metadata = {}
         if spotter != "": 
             spotter = spotter.replace("\n", " ").split(" ")
             spotter = list(filter(lambda x: len(x) > 0, spotter))
@@ -266,10 +267,11 @@ class utils:
             while xpp <= xp:
                 spotter_name = spotter_name + ", " + spotter[xpp]
                 spotter_name += 2
-            folder_name = folder_name + f" [{spotter_name}]"
+            folder_metadata['description'] = spotter_name
         if event_type == "on_campus": folder = on_campus_folder
         if event_type == "off_campus": folder = off_campus_folder
         root = await utils.createRemoteFolder(folder_name,folder)
+        if spotter != "": updated_folder = drive_service.files().update(fileId=root, body=folder_metadata).execute()
         photoFolder = await utils.createRemoteFolder("Photos",root)
 
 
