@@ -21,13 +21,17 @@ sys.stdout.reconfigure(line_buffering=True)
 SCOPES = ['https://mail.google.com/',]
 our_email = 'wolfie.seawolf.bot@gmail.com'
 
-SERVICE_SCOPES = ['https://www.googleapis.com/auth/calendar']
+SERVICE_SCOPES = ['https://www.googleapis.com/auth/calendar','https://www.googleapis.com/auth/drive']
 SERVICE_ACCOUNT_FILE = "pygsheets_key.json"
 
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SERVICE_SCOPES)
 gc = GoogleCalendar('eumlsmdr2asjjrjm6q3vm3a5r8@group.calendar.google.com',credentials=credentials)
 pto = GoogleCalendar('ec0f568262d866fb5c60e5b5b436671325a522c6eab10faa23c6b9dfb408f02d@group.calendar.google.com',credentials=credentials)
 calendar = gc.get_calendar('eumlsmdr2asjjrjm6q3vm3a5r8@group.calendar.google.com')
+
+drive_service = build('drive','v3',credentials=credentials)
+on_campus_folder = "11itV36I_JvKApDKgNRWd1KPpTVRoSvvY" #UNTIL January 2025
+off_campus_folder = "11mvnloCSRDxc8_3y5G3kilGxN5z0q7Ey" #UNTIL January 2025
 
 print("Calendars:")
 for calendar in gc.get_calendar_list():
@@ -37,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.7'
+version = f'1.1.8'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -67,6 +71,8 @@ bot = commands.Bot(command_prefix='>', description=description, intents=discord.
 gsclient = pygsheets.authorize(service_file='pygsheets_key.json'); gsheet = gsclient.open_by_key('1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q')
 PTOsheet = gsclient.open_by_key('1yLufq6ZppMDydmZ9ftmnuUzduqNib6Qv_p09R_3Ap2A')
 api = gsclient.open_by_key("1Qi8egVV5cS5G_9WTi94A6B6ZxmThePRt54I6fXYsOGE")
+
+
 
 contact_info = gsheet.worksheet_by_title('WOLFIE CONTACT INFO')
 wolfie_schedule = gsheet.worksheet_by_title('SCHEDULE')
@@ -103,6 +109,7 @@ async def on_ready(): #Has error handling
         on_ready_status["status"] += 1
     except Exception:
         await utils.ErrorHandler(Exception,"Startup")
+    #await utils.createRemoteFolder(folderName="TEST",parentID=on_campus_folder)
     #await main()
 
 class utils:
@@ -218,6 +225,54 @@ class utils:
         chan = bot.get_channel(1112127760740130876)
         await chan.send(f"***Error Detected in {task}:***```{e}```")
 
+    async def get_service(api_name, api_version, scopes, key_file_location):
+        """Get a service that communicates to a Google API.
+
+        Args:
+            api_name: The name of the api to connect to.
+            api_version: The api version to connect to.
+            scopes: A list auth scopes to authorize for the application.
+            key_file_location: The path to a valid service account JSON key file.
+
+        Returns:
+            A service that is connected to the specified API.
+        """
+        credentials = service_account.Credentials.from_service_account_file(
+        key_file_location)
+        scoped_credentials = credentials.with_scopes(scopes)
+        # Build the service object.
+        service = build(api_name, api_version, credentials=scoped_credentials)
+        return service
+
+    async def createRemoteFolder(folderName, parentID = None):
+        # Create a folder on Drive, returns the newely created folders ID
+        body = {
+          'name': folderName,
+          'mimeType': "application/vnd.google-apps.folder"
+        }
+        if parentID:
+            body['parents'] = [parentID]
+        root_folder = drive_service.files().create(body = body).execute()
+        return root_folder['id']
+
+    async def createEventFolder(event_name,event_date,event_type="on_campus/off_campus",spotter=""):
+        folder_name = f"{event_date} - {event_name}"
+        if spotter != "": 
+            spotter = spotter.replace("\n", " ").split(" ")
+            spotter = list(filter(lambda x: len(x) > 0, spotter))
+            xp = round(len(spotter)/2)
+            xpp = 2
+            spotter_name = spotter[0]
+            while xpp <= xp:
+                spotter_name = spotter_name + ", " + spotter[xpp]
+                spotter_name += 2
+            folder_name = folder_name + f" [{spotter_name}]"
+        if event_type == "on_campus": folder = on_campus_folder
+        if event_type == "off_campus": folder = off_campus_folder
+        root = await utils.createRemoteFolder(folder_name,folder)
+        photoFolder = await utils.createRemoteFolder("Photos",root)
+
+
     @tasks.loop(minutes=60)
     async def AutoUpdate() -> bool:
         timecheck1 = await utils.TimeCheck('3:00am','3:15am')
@@ -293,7 +348,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            #timecheck = True
+            timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -480,6 +535,14 @@ class gcal:
                                 evt = evt + nl
                                 wk_unf_evts = wk_unf_evts + evt
                                 wk_unf += 1
+                        if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate:
+                            description = additional_info.lower()
+                            eventType = wolfie_schedule.cell(f"G{x}").value.lower()
+                            if "off campus" in description or "off-campus" in description: evtType = "off_campus"
+                            elif "bb" in eventType or "football" in eventType or "mascot madness" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
+                            else: evtType = "on_campus"
+                            event_date = datetime.strftime(dtdate,"%Y/%m/%d")
+                            if evtType != "none": await utils.createEventFolder(title,event_date,evtType,spotter)
                     elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
                         pause = 2
                         sheet = await utils.GetAcademicYear()
