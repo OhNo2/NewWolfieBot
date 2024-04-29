@@ -348,7 +348,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            timecheck = True
+            #timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
