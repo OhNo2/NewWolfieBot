@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.9'
+version = f'1.2.0'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -266,7 +266,7 @@ class utils:
             spotter_name = spotter[0]
             while xpp <= xp:
                 spotter_name = spotter_name + ", " + spotter[xpp]
-                spotter_name += 2
+                xpp += 2
             folder_metadata['description'] = spotter_name
         if event_type == "on_campus": folder = on_campus_folder
         if event_type == "off_campus": folder = off_campus_folder
