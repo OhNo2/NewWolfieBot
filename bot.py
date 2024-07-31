@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.1.10'
+version = f'1.2.1'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
