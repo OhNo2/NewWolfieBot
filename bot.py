@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.0'
+version = f'1.3.1'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -446,8 +446,33 @@ class gcal:
                             wolfie_schedule.update_value(f"V{x}",confirmed)
                         elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
                             pause = 19
-                            editevt = gc.get_event(wolfie_schedule.cell(f"P{x}").value)
-                            edevt = editevt
+                            try:
+                                editevt = gc.get_event(wolfie_schedule.cell(f"P{x}").value)
+                                edevt = editevt
+                            except:
+                                try:
+                                    myolddate = await utils.ZeropadDatetime("D",str(date))
+                                    dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
+                                except:
+                                    dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
+                                editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                m = 0
+                                for event in editevt:
+                                    edevt = event
+                                    m += 1
+                                if m == 0:
+                                    olddate = olddate.replace(" ","")
+                                    editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                    for event in editevt:
+                                        edevt = event
+                                try:        
+                                    print(edevt)
+                                    print(edevt.id)
+                                    wolfie_schedule.update_value(f"P{x}",edevt.event_id)
+                                except:
+                                    wolfie_schedule.update_value(f"P{x}","")
+                                    pause += 1
+                                    continue
                             print(f"'{title}'")
                             print(f"'{date}'")
                             olddate = wolfie_schedule.cell(f"Q{x}").value
