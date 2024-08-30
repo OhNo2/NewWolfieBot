@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.1'
+version = f'1.3.2'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -505,8 +505,11 @@ class gcal:
                                         wolfie_schedule.update_value(f"U{x}",additional_info)
                                         wolfie_schedule.update_value(f"V{x}",confirmed)
                                         edited = True
-                                    gc.update_event(edevt)
-                                    print("Event Edited")
+                                    try:
+                                        gc.update_event(edevt)
+                                        print("Event Edited")
+                                    except:
+                                        print("EVENT COULD NOT BE UPDATED")
                                 z += 1
                             if dtdate <= datetime.now() + timedelta(days=7):
                                 desc = f"{date}: {start_time}-{end_time}"
