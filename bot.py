@@ -30,8 +30,8 @@ pto = GoogleCalendar('ec0f568262d866fb5c60e5b5b436671325a522c6eab10faa23c6b9dfb4
 calendar = gc.get_calendar('eumlsmdr2asjjrjm6q3vm3a5r8@group.calendar.google.com')
 
 drive_service = build('drive','v3',credentials=credentials)
-on_campus_folder = "11itV36I_JvKApDKgNRWd1KPpTVRoSvvY" #UNTIL January 2025
-off_campus_folder = "11mvnloCSRDxc8_3y5G3kilGxN5z0q7Ey" #UNTIL January 2025
+on_campus_folder = "1QkBCfWz8RRr_CE_lPpbf59gode_FyKt5" #UNTIL January 2026
+off_campus_folder = "1iNxxnouI7hb1XhwFX-oHz9BDXtaqp6kZ" #UNTIL January 2026
 
 print("Calendars:")
 for calendar in gc.get_calendar_list():
@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.2'
+version = f'1.3.3'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
