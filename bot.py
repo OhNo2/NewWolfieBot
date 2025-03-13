@@ -545,7 +545,9 @@ class gcal:
                             except:
                                 description = ""
                             eventType = wolfie_schedule.cell(f"G{x}").value.lower()
-                            if "off campus" in description or "off-campus" in description: evtType = "off_campus"
+                            isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
+                            if "cancelled" in isCancelled: evtType = "none"
+                            elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
                             elif "bb" in eventType or "football" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                             else: evtType = "on_campus"
                             event_date = datetime.strftime(dtdate,"%Y/%m/%d")
