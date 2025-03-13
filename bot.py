@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.3'
+version = f'1.3.4'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -355,7 +355,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            #timecheck = True
+            if DEV_TOKEN != "False" and utils.AutoUpdate.is_running() != False: timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -540,10 +540,13 @@ class gcal:
                                 wk_unf_evts = wk_unf_evts + evt
                                 wk_unf += 1
                         if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate: #Creates event folder for photos/videos
-                            description = additional_info.lower()
+                            try:
+                                description = additional_info.lower()
+                            except:
+                                description = ""
                             eventType = wolfie_schedule.cell(f"G{x}").value.lower()
                             if "off campus" in description or "off-campus" in description: evtType = "off_campus"
-                            elif "bb" in eventType or "football" in eventType or "mascot madness" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
+                            elif "bb" in eventType or "football" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                             else: evtType = "on_campus"
                             event_date = datetime.strftime(dtdate,"%Y/%m/%d")
                             if evtType != "none": await utils.createEventFolder(title,event_date,evtType,spotter)
