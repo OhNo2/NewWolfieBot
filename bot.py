@@ -5,7 +5,7 @@ from itertools import permutations; import json; import random; import time; fro
 from datetime import timedelta; import asyncio
 from typing import final; import discord
 from discord import guild
-import pygsheets; import traceback; from gcsa.attendee import Attendee
+import pygsheets; import traceback
 from pygsheets.datarange import DataRange
 import requests; from discord import File, User, Webhook
 from discord.ext import commands, tasks; from discord.ext.commands import Bot, Cog, CommandNotFound, Context
@@ -30,8 +30,8 @@ pto = GoogleCalendar('ec0f568262d866fb5c60e5b5b436671325a522c6eab10faa23c6b9dfb4
 calendar = gc.get_calendar('eumlsmdr2asjjrjm6q3vm3a5r8@group.calendar.google.com')
 
 drive_service = build('drive','v3',credentials=credentials)
-on_campus_folder = "1QkBCfWz8RRr_CE_lPpbf59gode_FyKt5" #UNTIL January 2026
-off_campus_folder = "1iNxxnouI7hb1XhwFX-oHz9BDXtaqp6kZ" #UNTIL January 2026
+on_campus_folder = "11itV36I_JvKApDKgNRWd1KPpTVRoSvvY" #UNTIL January 2025
+off_campus_folder = "11mvnloCSRDxc8_3y5G3kilGxN5z0q7Ey" #UNTIL January 2025
 
 print("Calendars:")
 for calendar in gc.get_calendar_list():
@@ -41,7 +41,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.4'
+version = f'1.1.10'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -213,7 +213,7 @@ class utils:
         currentMonth = datetime.now().month
         currentYear = datetime.now().year
         year = int(str(currentYear)[2:])
-        if int(currentMonth) > 7: yearstr = str(year) + "-" + str(year + 1)
+        if int(currentMonth) > 6: yearstr = str(year) + "-" + str(year + 1)
         else: yearstr = str(year-1) + "-" + str(year)
         return yearstr
 
@@ -274,6 +274,7 @@ class utils:
         if spotter != "": updated_folder = drive_service.files().update(fileId=root, body=folder_metadata).execute()
         photoFolder = await utils.createRemoteFolder("Photos",root)
 
+
     @tasks.loop(minutes=60)
     async def AutoUpdate() -> bool:
         timecheck1 = await utils.TimeCheck('3:00am','3:15am')
@@ -331,16 +332,10 @@ class gcal:
                 start = datetime.strptime(start_date,f'%m/%d/%Y')
                 end = datetime.strptime(end_date,f'%m/%d/%Y')
         event = Event(title,start,end,location=signups,description=description)
-        if calSelect == "gc": 
-            evt = gc.add_event(event)
-            evt = evt.event_id
-        elif calSelect == "pto": 
-            evt = pto.add_event(event)
-            evt = evt.event_id
-        else: evt = "x"
-        print(str(evt))
+        if calSelect == "gc": gc.add_event(event)
+        if calSelect == "pto": pto.add_event(event)
+        else: "ERROR: INVALID CALENDAR"
         print(f"Event titled {title} added to calendar")
-        return evt
 
     async def update_event(event,row:int,title:str,date:str,start_time:str,end_time:str,signups:str,description:str):
         pass
@@ -355,7 +350,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            if DEV_TOKEN != "False" and utils.AutoUpdate.is_running() != False: timecheck = True
+            #timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -426,9 +421,9 @@ class gcal:
                         else: confirm = "No" 
                         description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
                         #Begin to handle the events
-                        if cal_created.lower() == "": # The event has not been created yet
+                        if cal_created.lower() != "x": # The event has not been created yet
                             pause = 11
-                            evt_str = await gcal.create_event(title,date,start_time,end_time,signups, description)
+                            await gcal.create_event(title,date,start_time,end_time,signups, description)
                             embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
                             embed.add_field(name="Event Date:",value=date)
                             embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
@@ -437,7 +432,7 @@ class gcal:
                             embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
                             sheetchan = bot.get_channel(902627884995321937)
                             await sheetchan.send(embed=embed)
-                            wolfie_schedule.update_value(f"P{x}",evt_str)
+                            wolfie_schedule.update_value(f"P{x}","X")
                             wolfie_schedule.update_value(f"Q{x}",f"{date}")
                             wolfie_schedule.update_value(f"R{x}",start_time)
                             wolfie_schedule.update_value(f"S{x}",wolfie)
@@ -446,37 +441,31 @@ class gcal:
                             wolfie_schedule.update_value(f"V{x}",confirmed)
                         elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
                             pause = 19
-                            try:
-                                editevt = gc.get_event(wolfie_schedule.cell(f"P{x}").value)
-                                edevt = editevt
-                            except:
-                                try:
-                                    myolddate = await utils.ZeropadDatetime("D",str(date))
-                                    dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
-                                except:
-                                    dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                                editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
-                                m = 0
-                                for event in editevt:
-                                    edevt = event
-                                    m += 1
-                                if m == 0:
-                                    olddate = olddate.replace(" ","")
-                                    editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
-                                    for event in editevt:
-                                        edevt = event
-                                try:        
-                                    print(edevt)
-                                    print(edevt.id)
-                                    wolfie_schedule.update_value(f"P{x}",edevt.event_id)
-                                except:
-                                    wolfie_schedule.update_value(f"P{x}","")
-                                    pause += 1
-                                    continue
                             print(f"'{title}'")
                             print(f"'{date}'")
                             olddate = wolfie_schedule.cell(f"Q{x}").value
                             date = date.replace(" ","")
+                            try:
+                                myolddate = await utils.ZeropadDatetime("D",str(date))
+                                dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
+                            except:
+                                dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
+                            editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                            m = 0
+                            for event in editevt:
+                                edevt = event
+                                m += 1
+                            if m == 0:
+                                olddate = olddate.replace(" ","")
+                                editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                for event in editevt:
+                                    edevt = event
+                            try:        
+                                print(edevt)
+                            except:
+                                wolfie_schedule.update_value(f"P{x}","")
+                                pause += 1
+                                continue
                             datechk = bool(wolfie_schedule.cell(f"Q{x}").value == date)
                             startchk = bool(wolfie_schedule.cell(f"R{x}").value == start_time)
                             wolfchk = bool(wolfie_schedule.cell(f"S{x}").value == wolfie)
@@ -505,11 +494,20 @@ class gcal:
                                         wolfie_schedule.update_value(f"U{x}",additional_info)
                                         wolfie_schedule.update_value(f"V{x}",confirmed)
                                         edited = True
-                                    try:
-                                        gc.update_event(edevt)
-                                        print("Event Edited")
-                                    except:
-                                        print("EVENT COULD NOT BE UPDATED")
+                                    gc.update_event(edevt)
+                                    print("Event Edited")
+                                    if edited == True:
+                                        editevt = gc.get_events(datetime.strptime(date, "%m/%d/%Y"),datetime.strptime(date, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                                        m = 0
+                                        for event in editevt:
+                                            edevt = event
+                                            m += 1
+                                        if m == 0:
+                                            olddate = olddate.replace(" ","")
+                                            editevt = gc.get_events(datetime.strptime(olddate, "%m/%d/%Y"),datetime.strptime(olddate, "%m/%d/%Y") + timedelta(days=1),query=title,timezone="America/New_York")
+                                            for event in editevt:
+                                                edevt = event
+                                        print(edevt)
                                 z += 1
                             if dtdate <= datetime.now() + timedelta(days=7):
                                 desc = f"{date}: {start_time}-{end_time}"
@@ -539,16 +537,11 @@ class gcal:
                                 evt = evt + nl
                                 wk_unf_evts = wk_unf_evts + evt
                                 wk_unf += 1
-                        if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate: #Creates event folder for photos/videos
-                            try:
-                                description = additional_info.lower()
-                            except:
-                                description = ""
+                        if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate:
+                            description = additional_info.lower()
                             eventType = wolfie_schedule.cell(f"G{x}").value.lower()
-                            isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
-                            if "cancelled" in isCancelled: evtType = "none"
-                            elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
-                            elif "bb" in eventType or "football" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
+                            if "off campus" in description or "off-campus" in description: evtType = "off_campus"
+                            elif "bb" in eventType or "football" in eventType or "mascot madness" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                             else: evtType = "on_campus"
                             event_date = datetime.strftime(dtdate,"%Y/%m/%d")
                             if evtType != "none": await utils.createEventFolder(title,event_date,evtType,spotter)
@@ -574,9 +567,7 @@ class gcal:
                             subject = subject.replace(" ","%20")
                             email_date = dtdate.strftime("%Y-%m-%d")
                             nl = '\n'
-                            event_reference = str(sheet.cell(f"BH{shrow}").value)
-                            form_link=f"https://docs.google.com/forms/d/e/1FAIpQLSflDZ8AjHxNqTEyk3-GAnLdlabZ7WlPsns4SF8y4TuChLgTwA/viewform?usp=pp_url&entry.708486352={event_name.replace(' ','%20')}&entry.1669706537={email_date}&entry.395191729={event_reference}"
-                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0A{form_link}"
+                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0Ahttps://docs.google.com/forms/d/e/1FAIpQLSe2C0f17HLMSU1fEiuK93bUS65nh8UYuJ46YllXC4gnXpYzSA/viewform?usp=pp_url&entry.708486352={event_name.replace(' ','%20')}&entry.1669706537={email_date}"
                             body = body.replace("%0D%0A",nl)
                             email_link = f"{body}"
                             email_embed = discord.Embed(title=f"Wolfie Satisfaction Form Email - {event_name}",description=f"send to: {requester}")
