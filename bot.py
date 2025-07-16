@@ -39,7 +39,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.5'
+version = f'1.3.6'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -544,7 +544,7 @@ class gcal:
                                 description = ""
                             eventType = wolfie_schedule.cell(f"G{x}").value.lower()
                             isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
-                            if "cancelled" in isCancelled: evtType = "none"
+                            if "cancelled" in isCancelled or "no coverage" in isCancelled: evtType = "none"
                             elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
                             elif "bb" in eventType or "football" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                             else: evtType = "on_campus"
@@ -566,7 +566,9 @@ class gcal:
                                 await asyncio.sleep(1)
                             sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
                             await asyncio.sleep(1)
-                        if "@" in requester:
+                        isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
+                        isCancelled = bool("cancelled" not in isCancelled and "no coverage" not in isCancelled)
+                        if "@" in requester and isCancelled:
                             subject = f"Wolfie Satisfaction Form - {event_name}"
                             requester_name = requester.split("@")[0].split(".")[0].capitalize()
                             subject = subject.replace(" ","%20")
