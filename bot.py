@@ -39,7 +39,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.7'
+version = f'1.3.9'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -324,10 +324,12 @@ class gcal:
                 start = await utils.DateTimeCombine(start_date,start_time)
                 end = await utils.DateTimeCombine(end_date,end_time)
             else:
-                start_date = await utils.ZeropadDatetime("D",date)
+                start_time = await utils.ZeropadDatetime("T",start_time)
+                end_time = await utils.ZeropadDatetime("T",end_time)
+                date = await utils.ZeropadDatetime("D",date)
                 end_date = await utils.ZeropadDatetime("D",end_date)
-                start = datetime.strptime(start_date,f'%m/%d/%Y')
-                end = datetime.strptime(end_date,f'%m/%d/%Y')
+                start = await utils.DateTimeCombine(date,start_time)
+                end = await utils.DateTimeCombine(end_date,end_time)
         event = Event(title,start,end,location=signups,description=description)
         if calSelect == "gc": 
             evt = gc.add_event(event)
