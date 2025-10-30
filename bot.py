@@ -1,6 +1,6 @@
 import csv; import os; import pickle; import re; import sys
 from itertools import permutations; import json; import random; import time; from datetime import datetime
-from datetime import timedelta; import asyncio
+from datetime import timedelta; import asyncio; import re
 from typing import final; import discord
 from discord import guild
 import pygsheets; import traceback; from gcsa.attendee import Attendee
@@ -39,7 +39,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.3.9'
+version = f'1.3.10'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -69,6 +69,8 @@ bot = commands.Bot(command_prefix='>', description=description, intents=discord.
 gsclient = pygsheets.authorize(service_file='pygsheets_key.json'); gsheet = gsclient.open_by_key('1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q')
 PTOsheet = gsclient.open_by_key('1yLufq6ZppMDydmZ9ftmnuUzduqNib6Qv_p09R_3Ap2A')
 api = gsclient.open_by_key("1Qi8egVV5cS5G_9WTi94A6B6ZxmThePRt54I6fXYsOGE")
+datastore = gsclient.open_by_key("1OCOKYLDeD_VcysQMJrD1LpgAOjx-ABtV2D-2yWvbi28")
+datastore_output = datastore.worksheet_by_title("Long-Term Output")
 
 
 
@@ -99,6 +101,7 @@ async def on_ready(): #Has error handling
         else: print("This is a DEV environment")
         if gcal.iterate_events.is_running() == False: gcal.iterate_events.start()
         if gcal.timeoff.is_running() == False: gcal.timeoff.start()
+        if delete_old_sheets.is_running() == False: delete_old_sheets.start(datastore,datastore_output)
         server = bot.get_guild(901724465476546571)
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"The Wolfie Team"))
         print("Wolfie is Watching")
@@ -276,7 +279,8 @@ class utils:
     async def AutoUpdate() -> bool:
         timecheck1 = await utils.TimeCheck('3:00am','3:15am')
         timecheck2 = await utils.TimeCheck('4:00am','4:15am')
-        if timecheck1 == False and timecheck2 == False:
+        timecheck3 = await utils.TimeCheck('12:00am','12:15am')
+        if timecheck1 == False and timecheck2 == False and timecheck3 == False:
             print("Looking For Updates...")
             nl = '\n'
             qint = random.randint(1,2000)
@@ -301,6 +305,103 @@ class utils:
                 #    os.execv(sys.executable, ['python'] + sys.argv)
             else:
                 print("Alpha Wolf is Up to Date!")
+
+ARRAYFORMULA_COLUMNS = ["I","J","K","L","M","N","R","S"]
+PERCENT_COLUMNS = ["F","G","H"]
+
+def col_letter_to_index(col_letter: str) -> int:
+    """Convert Excel-style column letter (A, B, ..., AA, etc.) to 0-based index."""
+    col_letter = col_letter.upper()
+    index = 0
+    for char in col_letter:
+        index = index * 26 + (ord(char) - ord('A') + 1)
+    return index - 1  # 0-based index
+
+@tasks.loop(minutes=15)
+async def delete_old_sheets(spreadsheet: pygsheets.Spreadsheet, long_term_ws: pygsheets.Worksheet, days_old=90):
+    """
+    Deletes sheets older than `days_old` and updates the Long-Term Output sheet.
+    Only replaces formulas with values for rows that correspond to deleted sheets.
+    Preserves all formulas elsewhere.
+    """
+    timecheck = False
+    timecheck = await utils.TimeCheck('3:00am','3:15am')
+    if DEV_TOKEN != "False": timecheck = True
+    if timecheck == False: return
+    today = datetime.today()
+    cutoff_date = today - timedelta(days=days_old)
+
+    print(f"[DEBUG] Today's date: {today.strftime('%m/%d/%Y')}")
+    print(f"[DEBUG] Cutoff date for deletion: {cutoff_date.strftime('%m/%d/%Y')}")
+
+    # ---------- STEP 1: Determine which sheets to delete ----------
+    def get_sheets_to_delete():
+        all_sheets = spreadsheet.worksheets()
+        sheets_to_delete = []
+        for sheet in all_sheets:
+            sheet_name = sheet.title
+            if sheet_name in ["Long-Term Output", "TEMPLATE"]:
+                continue
+            try:
+                sheet_date = datetime.strptime(sheet_name, "%m/%d/%y")
+            except ValueError:
+                continue
+            if sheet_date < cutoff_date:
+                sheets_to_delete.append(sheet_name)
+        return sheets_to_delete
+
+    sheets_to_delete = await asyncio.to_thread(get_sheets_to_delete)
+    if not sheets_to_delete:
+        print("[DEBUG] No sheets to delete.")
+        return
+    print(f"[DEBUG] Sheets marked for deletion: {sheets_to_delete}")
+
+    # ---------- STEP 2: Read Long-Term Output (values + formulas) ----------
+    def get_long_term_cells():
+        return long_term_ws.get_values("A1", "H", returnas="cell", include_tailing_empty=False)
+
+    cell_grid = await asyncio.to_thread(get_long_term_cells)
+    print(f"[DEBUG] Retrieved {len(cell_grid)} rows from Long-Term Output")
+
+    # ---------- STEP 3: Identify and prepare updated rows ----------
+    rows_to_update = []
+    formulas_replaced = 0
+
+    for r, row in enumerate(cell_grid):
+        if not row:
+            continue
+        sheet_name = row[0].value
+        if sheet_name in sheets_to_delete:
+            # Build replacement row (values only, B-H)
+            row_values = [c.value for c in row[:8]]  # A–H values
+            # Replace any formulas with their current values (B–H)
+            for c in range(1, len(row_values)):
+                if row[c].formula:
+                    row_values[c] = row[c].value
+                    formulas_replaced += 1
+            rows_to_update.append((r + 1, row_values))  # store row index + data
+
+    print(f"[DEBUG] Rows to update: {len(rows_to_update)}, formulas replaced: {formulas_replaced}")
+
+    # ---------- STEP 4: Write only modified rows back ----------
+    async def update_long_term_output():
+        for row_num, row_values in rows_to_update:
+            cell_range = f"A{row_num}:H{row_num}"
+            print(f"[DEBUG] Updating {cell_range} for deleted sheet row {row_num}")
+            await asyncio.to_thread(long_term_ws.update_values, cell_range, [row_values])
+
+    await update_long_term_output()
+
+    # ---------- STEP 5: Delete the old sheets ----------
+    async def delete_sheets():
+        for sheet_name in sheets_to_delete:
+            print(f"[DEBUG] Deleting sheet: {sheet_name}")
+            sheet = spreadsheet.worksheet_by_title(sheet_name)
+            await asyncio.to_thread(spreadsheet.del_worksheet, sheet)
+
+    await delete_sheets()
+
+    print("[DEBUG] Deletion process complete.")
 
 class gcal:
     async def create_event(title:str,date:str,start_time:str,end_time:str,signups:str,description:str,end_date:str="NA",calSelect="gc"):
@@ -355,7 +456,7 @@ class gcal:
             nl = '\n'
             today = datetime.now().strftime("%m/%d/%Y")
             timecheck = await utils.TimeCheck('12:00am','12:15am')
-            if DEV_TOKEN != "False" and utils.AutoUpdate.is_running() != False: timecheck = True
+            if DEV_TOKEN != "False": timecheck = True
             if timecheck == True:
                 # Get list of current events to check events against
                 #events = gc.get_events(datetime.today(), datetime.today() + timedelta(days=180))
@@ -962,6 +1063,7 @@ class gmail:
               'ids': [ msg['id'] for msg in messages_to_delete]
         }
         ).execute()
+
 class WolfieAutomation:
     #@tasks.loop(minutes=2)
     async def LookForNewEmails():                                               # checks to see if there are any unread emails
