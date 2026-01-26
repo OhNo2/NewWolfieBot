@@ -28,8 +28,9 @@ pto = GoogleCalendar('ec0f568262d866fb5c60e5b5b436671325a522c6eab10faa23c6b9dfb4
 calendar = gc.get_calendar('eumlsmdr2asjjrjm6q3vm3a5r8@group.calendar.google.com')
 
 drive_service = build('drive','v3',credentials=credentials)
-on_campus_folder = "1QkBCfWz8RRr_CE_lPpbf59gode_FyKt5" #UNTIL January 2026
-off_campus_folder = "1iNxxnouI7hb1XhwFX-oHz9BDXtaqp6kZ" #UNTIL January 2026
+on_campus_folder = "1dkCob5yRAM-E0o1WF7ePOtc5D3O2DzhX" #UNTIL January 2027
+off_campus_folder = "1JlQM-90doviNU3M9vbZuNjreAtH4Jkzp" #UNTIL January 2027
+sport_game_folder = "1S9PLwWuO7Ym0zTgk2VN67PJp_ZIwMxpd" #UNTIL January 2027
 
 print("Calendars:")
 for calendar in gc.get_calendar_list():
@@ -39,7 +40,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.0'
+version = f'1.4.1'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -256,7 +257,7 @@ class utils:
         root_folder = drive_service.files().create(body = body).execute()
         return root_folder['id']
 
-    async def createEventFolder(event_name,event_date,event_type="on_campus/off_campus",spotter=""):
+    async def createEventFolder(event_name,event_date,event_type="on_campus/off_campus/sports_event",spotter=""):
         folder_name = f"{event_date} - {event_name}"
         folder_metadata = {}
         if spotter != "": 
@@ -271,6 +272,7 @@ class utils:
             folder_metadata['description'] = spotter_name
         if event_type == "on_campus": folder = on_campus_folder
         if event_type == "off_campus": folder = off_campus_folder
+        if event_type == "sports_event": folder = sport_game_folder
         root = await utils.createRemoteFolder(folder_name,folder)
         if spotter != "": updated_folder = drive_service.files().update(fileId=root, body=folder_metadata).execute()
         photoFolder = await utils.createRemoteFolder("Photos",root)
@@ -649,7 +651,8 @@ class gcal:
                             isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
                             if "cancelled" in isCancelled or "no coverage" in isCancelled: evtType = "none"
                             elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
-                            elif "bb" in eventType or "football" in eventType or "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
+                            elif "bb" in eventType or "football" in eventType: evtType = "sports_event"
+                            elif "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                             else: evtType = "on_campus"
                             event_date = datetime.strftime(dtdate,"%Y/%m/%d")
                             if evtType != "none": await utils.createEventFolder(title,event_date,evtType,spotter)
