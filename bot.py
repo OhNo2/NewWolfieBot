@@ -12,6 +12,8 @@ from googleapiclient.discovery import build; from google_auth_oauthlib.flow impo
 from base64 import urlsafe_b64decode, urlsafe_b64encode; from email.mime.text import MIMEText; from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage; from email.mime.audio import MIMEAudio; from email.mime.base import MIMEBase; from mimetypes import guess_type as guess_mime_type
 from gcsa.google_calendar import GoogleCalendar; import gcsa.event; import gcsa.recurrence; from gcsa.calendar import CalendarListEntry; from gcsa.event import Event
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -171,11 +173,15 @@ class utils:
             day = datetime.strptime(f"{date[0]}/{date[1]}/{chk[2]+1}","%m/%d/%Y")#sets year to next year
         return day                                                              # returns date of day in question
 
-    async def DateTimeCombine(date,time) -> datetime.date:
-        mytime = datetime.strptime(time,f'%H:%M').time() #needs to have zero padding hour
-        date = datetime.strptime(date,f'%m/%d/%Y') # needs to have zero padding month and day
-        mydatetime = datetime.combine(date, mytime)
-        return mydatetime
+    async def DateTimeCombine(date_str, time_str) -> datetime:
+        mytime = datetime.strptime(time_str, '%H:%M').time()
+        date_obj = datetime.strptime(date_str, '%m/%d/%Y')
+        
+        # Combine them into a naive datetime first
+        mydatetime = datetime.combine(date_obj, mytime)
+        
+        # Attach the New York timezone (this handles DST automatically)
+        return mydatetime.replace(tzinfo=ZoneInfo("America/New_York"))
 
     async def ZeropadDatetime(typ:str,string:str) -> str:                       # Takes input as D or T
         if typ.lower() == 't':
@@ -433,6 +439,7 @@ class gcal:
                 end_date = await utils.ZeropadDatetime("D",end_date)
                 start = await utils.DateTimeCombine(date,start_time)
                 end = await utils.DateTimeCombine(end_date,end_time)
+                
         event = Event(title,start,end,location=signups,description=description)
         if calSelect == "gc": 
             evt = gc.add_event(event)
@@ -631,6 +638,7 @@ class gcal:
                                     print("Event Edited")
                                 except:
                                     print("EVENT COULD NOT BE UPDATED")
+                            print(edevt.start,edevt.start.tzinfo)
                             if dtdate <= datetime.now() + timedelta(days=7):
                                 desc = f"{date}: {start_time}-{end_time}"
                                 if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
