@@ -40,7 +40,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.1'
+version = f'1.4.2'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -588,32 +588,49 @@ class gcal:
                             confchk = bool(wolfie_schedule.cell(f"V{x}").value == confirmed)
                             chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
                             z = 0
-                            for chk in chklst:
-                                if chk == False:
-                                    print(f"check {chk}")
-                                    edited = False
-                                    if z == 0 or z == 1:
-                                        edevt.start = await utils.DateTimeCombine(date,start_time)
-                                        edevt.end = await utils.DateTimeCombine(date,end_time)
-                                        wolfie_schedule.update_value(f"Q{x}",f"{date}")
-                                        wolfie_schedule.update_value(f"R{x}",start_time)
-                                        edited = True
-                                    elif z == 2 or z == 3:
-                                        edevt.location = signups
-                                        wolfie_schedule.update_value(f"S{x}",wolfie)
-                                        wolfie_schedule.update_value(f"T{x}",spotter)
-                                        edited = True
-                                    elif z == 4 or z == 5:
-                                        edevt.description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
-                                        wolfie_schedule.update_value(f"U{x}",additional_info)
-                                        wolfie_schedule.update_value(f"V{x}",confirmed)
-                                        edited = True
-                                    try:
-                                        gc.update_event(edevt)
-                                        print("Event Edited")
-                                    except:
-                                        print("EVENT COULD NOT BE UPDATED")
-                                z += 1
+                            edited = False
+
+                            # --- Date / Time ---
+                            if not datechk or not startchk:
+                                edevt.start = await utils.DateTimeCombine(date, start_time)
+                                edevt.end = await utils.DateTimeCombine(date, end_time)
+                                wolfie_schedule.update_value(f"Q{x}", date)
+                                wolfie_schedule.update_value(f"R{x}", start_time)
+                                edited = True
+                            
+                            
+                            # --- Location (Wolfie + Spotter → event.location) ---
+                            signups = signups.strip()
+                            
+                            if edevt.location != signups:
+                                edevt.location = signups
+                                wolfie_schedule.update_value(f"S{x}", wolfie)
+                                wolfie_schedule.update_value(f"T{x}", spotter)
+                                edited = True
+                            
+                            
+                            # --- Description (Location text + confirm + notes) ---
+                            new_description = (
+                                f"Location: {location}{nl}{nl}"
+                                f"Requestor: {requestor}{nl}{nl}"
+                                f"Event is Confirmed: {confirm}{nl}{nl}"
+                                f"Additional Notes: {additional_info}"
+                            )
+                            
+                            if edevt.description != new_description:
+                                edevt.description = new_description
+                                wolfie_schedule.update_value(f"U{x}", additional_info)
+                                wolfie_schedule.update_value(f"V{x}", confirmed)
+                                edited = True
+                            
+                            
+                            # --- Push Update Once ---
+                            if edited:
+                                try:
+                                    gc.update_event(edevt)
+                                    print("Event Edited")
+                                except:
+                                    print("EVENT COULD NOT BE UPDATED")
                             if dtdate <= datetime.now() + timedelta(days=7):
                                 desc = f"{date}: {start_time}-{end_time}"
                                 if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
