@@ -42,7 +42,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.2'
+version = f'1.4.3'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -348,7 +348,7 @@ async def delete_old_sheets(spreadsheet: pygsheets.Spreadsheet, long_term_ws: py
         sheets_to_delete = []
         for sheet in all_sheets:
             sheet_name = sheet.title
-            if sheet_name in ["Long-Term Output", "TEMPLATE"]:
+            if sheet_name in ["Long-Term Output", "TEMPLATE", "Previous Year"]:
                 continue
             try:
                 sheet_date = datetime.strptime(sheet_name, "%m/%d/%y")
