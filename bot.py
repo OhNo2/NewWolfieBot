@@ -348,7 +348,7 @@ async def delete_old_sheets(spreadsheet: pygsheets.Spreadsheet, long_term_ws: py
         sheets_to_delete = []
         for sheet in all_sheets:
             sheet_name = sheet.title
-            if sheet_name in ["Long-Term Output", "TEMPLATE", "Previous Year"]:
+            if sheet_name in ["Long-Term Output", "TEMPLATE", "Last 90 Days"]:
                 continue
             try:
                 sheet_date = datetime.strptime(sheet_name, "%m/%d/%y")
