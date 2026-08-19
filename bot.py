@@ -14,6 +14,7 @@ from email.mime.image import MIMEImage; from email.mime.audio import MIMEAudio; 
 from gcsa.google_calendar import GoogleCalendar; import gcsa.event; import gcsa.recurrence; from gcsa.calendar import CalendarListEntry; from gcsa.event import Event
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import importlib.util; import subprocess
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -42,7 +43,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.3'
+version = f'1.4.4'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -113,6 +114,14 @@ async def on_ready(): #Has error handling
         on_ready_status["status"] += 1
     except Exception:
         await utils.ErrorHandler(Exception,"Startup")
+    if importlib.util.find_spec("httpx") is None:
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "httpx"
+            
+        ])
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"httpx Installed Successfully!"))
+    else:
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"httpx Already Installed!"))
     #await utils.createRemoteFolder(folderName="TEST",parentID=on_campus_folder)
     #await main()
 
