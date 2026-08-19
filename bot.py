@@ -15,6 +15,8 @@ from gcsa.google_calendar import GoogleCalendar; import gcsa.event; import gcsa.
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import importlib.util; import subprocess
+from urllib.parse import quote
+import httpx
 
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -35,6 +37,14 @@ on_campus_folder = "1dkCob5yRAM-E0o1WF7ePOtc5D3O2DzhX" #UNTIL January 2027
 off_campus_folder = "1JlQM-90doviNU3M9vbZuNjreAtH4Jkzp" #UNTIL January 2027
 sport_game_folder = "1S9PLwWuO7Ym0zTgk2VN67PJp_ZIwMxpd" #UNTIL January 2027
 
+# Load OpenCloud configuration
+with open("opencloud_creds.json", "r") as f:
+    OPEN_CLOUD_CREDS = json.load(f)
+
+OPEN_CLOUD_USERNAME = OPEN_CLOUD_CREDS["username"]
+OPEN_CLOUD_APP_TOKEN = OPEN_CLOUD_CREDS["app_token"]
+OPEN_CLOUD_WEBDAV_URL = OPEN_CLOUD_CREDS["webdav_url"]
+
 print("Calendars:")
 for calendar in gc.get_calendar_list():
     print(calendar)
@@ -43,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.4'
+version = f'1.4.5'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -114,14 +124,6 @@ async def on_ready(): #Has error handling
         on_ready_status["status"] += 1
     except Exception:
         await utils.ErrorHandler(Exception,"Startup")
-    if importlib.util.find_spec("httpx") is None:
-        subprocess.check_call([
-            sys.executable, "-m", "pip", "install", "httpx"
-            
-        ])
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"httpx Installed Successfully!"))
-    else:
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"httpx Already Installed!"))
     #await utils.createRemoteFolder(folderName="TEST",parentID=on_campus_folder)
     #await main()
 
@@ -272,25 +274,94 @@ class utils:
         root_folder = drive_service.files().create(body = body).execute()
         return root_folder['id']
 
-    async def createEventFolder(event_name,event_date,event_type="on_campus/off_campus/sports_event",spotter=""):
-        folder_name = f"{event_date} - {event_name}"
-        folder_metadata = {}
-        if spotter != "": 
-            spotter = spotter.replace("\n", " ").split(" ")
-            spotter = list(filter(lambda x: len(x) > 0, spotter))
-            xp = round(len(spotter)/2)
+    async def createEventFolder(
+        event_name,
+        event_date,
+        event_type="on_campus/off_campus/sports_event",
+        spotter=""
+    ):
+        # Get the year from the event date.
+        #
+        # Assumes event_date is in YYYY-MM-DD format.
+        year = str(event_date)[:4]
+        season_folder = f"{year} Season"
+    
+        # Create the event folder name
+        folder_name = f"{event_date.replace('-',' ')} - {event_name}"
+    
+        # Process spotter names
+        spotter_name = ""
+    
+        if spotter != "":
+            spotter_list = spotter.replace("\n", " ").split(" ")
+            spotter_list = list(filter(lambda x: len(x) > 0, spotter_list))
+    
+            xp = round(len(spotter_list) / 2)
             xpp = 2
-            spotter_name = spotter[0]
+    
+            spotter_name = spotter_list[0]
+    
             while xpp <= xp:
-                spotter_name = spotter_name + ", " + spotter[xpp]
+                spotter_name = spotter_name + ", " + spotter_list[xpp]
                 xpp += 2
-            folder_metadata['description'] = spotter_name
-        if event_type == "on_campus": folder = on_campus_folder
-        if event_type == "off_campus": folder = off_campus_folder
-        if event_type == "sports_event": folder = sport_game_folder
-        root = await utils.createRemoteFolder(folder_name,folder)
-        if spotter != "": updated_folder = drive_service.files().update(fileId=root, body=folder_metadata).execute()
-        photoFolder = await utils.createRemoteFolder("Photos",root)
+    
+        # Determine the event-type folder
+        if event_type == "on_campus":
+            parent_folder = "On Campus"
+        elif event_type == "off_campus":
+            parent_folder = "Off Campus"
+        elif event_type == "sports_event":
+            parent_folder = "Sports"
+        else:
+            raise ValueError(
+                f"Invalid event_type: {event_type}. "
+                "Expected on_campus, off_campus, or sports_event."
+            )
+    
+        base_url = OPEN_CLOUD_WEBDAV_URL.rstrip("/")
+    
+        # URL encode each folder name
+        season_path = quote(season_folder, safe="")
+        parent_path = quote(parent_folder, safe="")
+        event_path = quote(folder_name, safe="")
+    
+        # Create the complete folder hierarchy
+        folders = [
+            season_path,
+            f"{season_path}/{parent_path}",
+            f"{season_path}/{parent_path}/{event_path}",
+            f"{season_path}/{parent_path}/{event_path}/Photos",
+        ]
+    
+        async with httpx.AsyncClient(
+            auth=(OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN),
+            timeout=30.0,
+        ) as client:
+    
+            for folder in folders:
+                url = f"{base_url}/{folder}/"
+    
+                response = await client.request(
+                    "MKCOL",
+                    url,
+                )
+    
+                # 201 = folder created
+                # 405 = folder already exists
+                if response.status_code not in (201, 405):
+                    raise RuntimeError(
+                        f"Failed to create OpenCloud folder '{folder}': "
+                        f"HTTP {response.status_code} - {response.text}"
+                    )
+    
+        # Return the Photos folder URL
+        return (
+            f"{base_url}/"
+            f"{season_path}/"
+            f"{parent_path}/"
+            f"{event_path}/"
+            f"Photos/"
+        )
 
     @tasks.loop(minutes=60)
     async def AutoUpdate() -> bool:
