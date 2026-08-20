@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.5'
+version = f'1.4.6'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -287,7 +287,7 @@ class utils:
         season_folder = f"{year} Season"
     
         # Create the event folder name
-        folder_name = f"{event_date.replace('-',' ')} - {event_name}"
+        folder_name = f"{event_date.replace('-',' ').replace('/',' ')} - {event_name}"
     
         # Process spotter names
         spotter_name = ""
