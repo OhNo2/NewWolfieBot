@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.6'
+version = f'1.4.7'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -337,22 +337,26 @@ class utils:
             auth=(OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN),
             timeout=30.0,
         ) as client:
-    
             for folder in folders:
                 url = f"{base_url}/{folder}/"
-    
-                response = await client.request(
-                    "MKCOL",
-                    url,
-                )
-    
-                # 201 = folder created
-                # 405 = folder already exists
-                if response.status_code not in (201, 405):
-                    raise RuntimeError(
-                        f"Failed to create OpenCloud folder '{folder}': "
-                        f"HTTP {response.status_code} - {response.text}"
-                    )
+                last_exc = None
+                for attempt in range(3):
+                    try:
+                        response = await client.request("MKCOL", url)
+                        if response.status_code in (201, 405):
+                            break
+                        elif response.status_code in (401, 403):
+                            # genuine auth problem - reload creds from disk and retry once
+                            await asyncio.to_thread(refresh_opencloud_auth)
+                            client.auth = (OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN)
+                            last_exc = RuntimeError(f"Auth failed creating '{folder}': HTTP {response.status_code} - {response.text}")
+                        else:
+                            last_exc = RuntimeError(f"Failed to create OpenCloud folder '{folder}': HTTP {response.status_code} - {response.text}")
+                    except httpx.RequestError as e:
+                        last_exc = RuntimeError(f"Network error creating OpenCloud folder '{folder}': {e}")
+                    await asyncio.sleep(2 * (attempt + 1))
+                else:
+                    raise last_exc
     
         # Return the Photos folder URL
         return (
@@ -575,234 +579,242 @@ class gcal:
                     pause = 3
                     x += 1
                     print(x)
-                    date = str(wolfie_schedule.cell(f"B{x}").value)
-                    date = date.replace(" ","")
                     try:
-                        mydate = await utils.ZeropadDatetime("D",str(date))
-                        dtdate = datetime.strptime(mydate,"%m/%d/%Y")
-                    except:
-                        dtdate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                        print("Not A Date")
-                    if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
-                        title = wolfie_schedule.cell(f"C{x}").value
-                        location = wolfie_schedule.cell(f"D{x}").value
-                        stime = wolfie_schedule.cell(f"E{x}").value
-                        start_time = str(await utils.Convert24h(str(stime)))
-                        etime = wolfie_schedule.cell(f"F{x}").value
-                        end_time = str(await utils.Convert24h(str(etime)))
-                        wolfie = wolfie_schedule.cell(f"I{x}").value
-                        spotter = wolfie_schedule.cell(f"J{x}").value
-                        requestor = wolfie_schedule.cell(f"K{x}").value
-                        confirmed = wolfie_schedule.cell(f"M{x}").value
-                        additional_info = wolfie_schedule.cell(f"N{x}").value
-                        cal_created = wolfie_schedule.cell(f"P{x}").value
-                        signups = wolfie + " " + spotter
-                        signups = signups.replace(nl," ").split(" ")
-                        signups  = [i for i in signups if i]
-                        z = ""
-                        xx = len(signups)
-                        xxx = 0
-                        while xxx < xx:
-                            if xxx%2 == 0: z = z + signups[xxx] + " "
-                            elif xxx != xx - 1: z = z + signups[xxx] + ", "
-                            else: z = z + signups[xxx]
-                            xxx += 1
-                        signups = z
-                        print(signups)
-                        if confirmed == "--": confirm = "Yes"
-                        elif confirmed == "": confirm = "No"
-                        elif confirmed == "x": confirm = "No"
-                        elif "/" in confirmed: confirm = "Yes"
-                        else: confirm = "No" 
-                        description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
-                        #Begin to handle the events
-                        if cal_created.lower() == "": # The event has not been created yet
-                            pause = 11
-                            evt_str = await gcal.create_event(title,date,start_time,end_time,signups, description)
-                            embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
-                            embed.add_field(name="Event Date:",value=date)
-                            embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
-                            embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
-                            if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
-                            embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
-                            sheetchan = bot.get_channel(902627884995321937)
-                            await sheetchan.send(embed=embed)
-                            wolfie_schedule.update_value(f"P{x}",evt_str)
-                            wolfie_schedule.update_value(f"Q{x}",f"{date}")
-                            wolfie_schedule.update_value(f"R{x}",start_time)
-                            wolfie_schedule.update_value(f"S{x}",wolfie)
-                            wolfie_schedule.update_value(f"T{x}",spotter)
-                            wolfie_schedule.update_value(f"U{x}",additional_info)
-                            wolfie_schedule.update_value(f"V{x}",confirmed)
-                        elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
-                            pause = 19
-                            try:
-                                editevt = gc.get_event(wolfie_schedule.cell(f"P{x}").value)
-                                edevt = editevt
-                            except:
+                        date = str(wolfie_schedule.cell(f"B{x}").value)
+                        date = date.replace(" ","")
+                        try:
+                            mydate = await utils.ZeropadDatetime("D",str(date))
+                            dtdate = datetime.strptime(mydate,"%m/%d/%Y")
+                        except:
+                            dtdate = datetime.strptime("04/10/2002", "%m/%d/%Y")
+                            print("Not A Date")
+                        if datetime.strptime(today,"%m/%d/%Y") <= dtdate: # Works if the date of the event is after today
+                            title = wolfie_schedule.cell(f"C{x}").value
+                            location = wolfie_schedule.cell(f"D{x}").value
+                            stime = wolfie_schedule.cell(f"E{x}").value
+                            start_time = str(await utils.Convert24h(str(stime)))
+                            etime = wolfie_schedule.cell(f"F{x}").value
+                            end_time = str(await utils.Convert24h(str(etime)))
+                            wolfie = wolfie_schedule.cell(f"I{x}").value
+                            spotter = wolfie_schedule.cell(f"J{x}").value
+                            requestor = wolfie_schedule.cell(f"K{x}").value
+                            confirmed = wolfie_schedule.cell(f"M{x}").value
+                            additional_info = wolfie_schedule.cell(f"N{x}").value
+                            cal_created = wolfie_schedule.cell(f"P{x}").value
+                            signups = wolfie + " " + spotter
+                            signups = signups.replace(nl," ").split(" ")
+                            signups  = [i for i in signups if i]
+                            z = ""
+                            xx = len(signups)
+                            xxx = 0
+                            while xxx < xx:
+                                if xxx%2 == 0: z = z + signups[xxx] + " "
+                                elif xxx != xx - 1: z = z + signups[xxx] + ", "
+                                else: z = z + signups[xxx]
+                                xxx += 1
+                            signups = z
+                            print(signups)
+                            if confirmed == "--": confirm = "Yes"
+                            elif confirmed == "": confirm = "No"
+                            elif confirmed == "x": confirm = "No"
+                            elif "/" in confirmed: confirm = "Yes"
+                            else: confirm = "No" 
+                            description = f"Location: {location}{nl}{nl}Requestor: {requestor}{nl}{nl}Event is Confirmed: {confirm}{nl}{nl}Additional Notes: {additional_info}"
+                            #Begin to handle the events
+                            if cal_created.lower() == "": # The event has not been created yet
+                                pause = 11
+                                evt_str = await gcal.create_event(title,date,start_time,end_time,signups, description)
+                                embed = discord.Embed(title=title,description=f'Location: {location}',url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
+                                embed.add_field(name="Event Date:",value=date)
+                                embed.add_field(name="Event Duration:",value=f'{start_time}-{end_time}')
+                                embed.add_field(name="Requestor Contact:",value=requestor,inline=False)
+                                if additional_info != "": embed.add_field(name="Additional Info:",value=additional_info,inline=False)
+                                embed.set_footer(text="Info subject to change. Acts as event creation reciept. Check spreadsheet for accurate info")
+                                sheetchan = bot.get_channel(902627884995321937)
+                                await sheetchan.send(embed=embed)
+                                wolfie_schedule.update_value(f"P{x}",evt_str)
+                                wolfie_schedule.update_value(f"Q{x}",f"{date}")
+                                wolfie_schedule.update_value(f"R{x}",start_time)
+                                wolfie_schedule.update_value(f"S{x}",wolfie)
+                                wolfie_schedule.update_value(f"T{x}",spotter)
+                                wolfie_schedule.update_value(f"U{x}",additional_info)
+                                wolfie_schedule.update_value(f"V{x}",confirmed)
+                            elif wolfie_schedule.cell(f"A{x}").value != "": #checks event that has already been created
+                                pause = 19
                                 try:
-                                    myolddate = await utils.ZeropadDatetime("D",str(date))
-                                    dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
+                                    editevt = gc.get_event(wolfie_schedule.cell(f"P{x}").value)
+                                    edevt = editevt
                                 except:
-                                    dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
-                                editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
-                                m = 0
-                                for event in editevt:
-                                    edevt = event
-                                    m += 1
-                                if m == 0:
-                                    olddate = olddate.replace(" ","")
+                                    try:
+                                        myolddate = await utils.ZeropadDatetime("D",str(date))
+                                        dtolddate = datetime.strptime(myolddate,"%m/%d/%Y")
+                                    except:
+                                        dtolddate = datetime.strptime("04/10/2002", "%m/%d/%Y")
                                     editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                    m = 0
                                     for event in editevt:
                                         edevt = event
-                                try:        
-                                    print(edevt)
-                                    print(edevt.id)
-                                    wolfie_schedule.update_value(f"P{x}",edevt.event_id)
-                                except:
-                                    wolfie_schedule.update_value(f"P{x}","")
-                                    pause += 1
-                                    continue
-                            print(f"'{title}'")
-                            print(f"'{date}'")
-                            olddate = wolfie_schedule.cell(f"Q{x}").value
-                            date = date.replace(" ","")
-                            datechk = bool(wolfie_schedule.cell(f"Q{x}").value == date)
-                            startchk = bool(wolfie_schedule.cell(f"R{x}").value == start_time)
-                            wolfchk = bool(wolfie_schedule.cell(f"S{x}").value == wolfie)
-                            spotchk = bool(wolfie_schedule.cell(f"T{x}").value == spotter)
-                            addchk = bool(wolfie_schedule.cell(f"U{x}").value == additional_info)
-                            confchk = bool(wolfie_schedule.cell(f"V{x}").value == confirmed)
-                            chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
-                            z = 0
-                            edited = False
-
-                            # --- Date / Time ---
-                            if not datechk or not startchk:
-                                edevt.start = await utils.DateTimeCombine(date, start_time)
-                                edevt.end = await utils.DateTimeCombine(date, end_time)
-                                wolfie_schedule.update_value(f"Q{x}", date)
-                                wolfie_schedule.update_value(f"R{x}", start_time)
-                                edited = True
-                            
-                            
-                            # --- Location (Wolfie + Spotter → event.location) ---
-                            signups = signups.strip()
-                            
-                            if edevt.location != signups:
-                                edevt.location = signups
-                                wolfie_schedule.update_value(f"S{x}", wolfie)
-                                wolfie_schedule.update_value(f"T{x}", spotter)
-                                edited = True
-                            
-                            
-                            # --- Description (Location text + confirm + notes) ---
-                            new_description = (
-                                f"Location: {location}{nl}{nl}"
-                                f"Requestor: {requestor}{nl}{nl}"
-                                f"Event is Confirmed: {confirm}{nl}{nl}"
-                                f"Additional Notes: {additional_info}"
-                            )
-                            
-                            if edevt.description != new_description:
-                                edevt.description = new_description
-                                wolfie_schedule.update_value(f"U{x}", additional_info)
-                                wolfie_schedule.update_value(f"V{x}", confirmed)
-                                edited = True
-                            
-                            
-                            # --- Push Update Once ---
-                            if edited:
+                                        m += 1
+                                    if m == 0:
+                                        olddate = olddate.replace(" ","")
+                                        editevt = gc.get_events(dtolddate - timedelta(days=1),dtolddate + timedelta(days=1),query=title,timezone="America/New_York")
+                                        for event in editevt:
+                                            edevt = event
+                                    try:        
+                                        print(edevt)
+                                        print(edevt.id)
+                                        wolfie_schedule.update_value(f"P{x}",edevt.event_id)
+                                    except:
+                                        wolfie_schedule.update_value(f"P{x}","")
+                                        pause += 1
+                                        continue
+                                print(f"'{title}'")
+                                print(f"'{date}'")
+                                olddate = wolfie_schedule.cell(f"Q{x}").value
+                                date = date.replace(" ","")
+                                datechk = bool(wolfie_schedule.cell(f"Q{x}").value == date)
+                                startchk = bool(wolfie_schedule.cell(f"R{x}").value == start_time)
+                                wolfchk = bool(wolfie_schedule.cell(f"S{x}").value == wolfie)
+                                spotchk = bool(wolfie_schedule.cell(f"T{x}").value == spotter)
+                                addchk = bool(wolfie_schedule.cell(f"U{x}").value == additional_info)
+                                confchk = bool(wolfie_schedule.cell(f"V{x}").value == confirmed)
+                                chklst = [datechk, startchk, wolfchk, spotchk, addchk, confchk]
+                                z = 0
+                                edited = False
+    
+                                # --- Date / Time ---
+                                if not datechk or not startchk:
+                                    edevt.start = await utils.DateTimeCombine(date, start_time)
+                                    edevt.end = await utils.DateTimeCombine(date, end_time)
+                                    wolfie_schedule.update_value(f"Q{x}", date)
+                                    wolfie_schedule.update_value(f"R{x}", start_time)
+                                    edited = True
+                                
+                                
+                                # --- Location (Wolfie + Spotter → event.location) ---
+                                signups = signups.strip()
+                                
+                                if edevt.location != signups:
+                                    edevt.location = signups
+                                    wolfie_schedule.update_value(f"S{x}", wolfie)
+                                    wolfie_schedule.update_value(f"T{x}", spotter)
+                                    edited = True
+                                
+                                
+                                # --- Description (Location text + confirm + notes) ---
+                                new_description = (
+                                    f"Location: {location}{nl}{nl}"
+                                    f"Requestor: {requestor}{nl}{nl}"
+                                    f"Event is Confirmed: {confirm}{nl}{nl}"
+                                    f"Additional Notes: {additional_info}"
+                                )
+                                
+                                if edevt.description != new_description:
+                                    edevt.description = new_description
+                                    wolfie_schedule.update_value(f"U{x}", additional_info)
+                                    wolfie_schedule.update_value(f"V{x}", confirmed)
+                                    edited = True
+                                
+                                
+                                # --- Push Update Once ---
+                                if edited:
+                                    try:
+                                        gc.update_event(edevt)
+                                        print("Event Edited")
+                                    except:
+                                        print("EVENT COULD NOT BE UPDATED")
+                                print(edevt.start,edevt.start.tzinfo)
+                                if dtdate <= datetime.now() + timedelta(days=7):
+                                    desc = f"{date}: {start_time}-{end_time}"
+                                    if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
+                                    elif wolfie == "": unf_evt.add_field(name=f'{title} - Wolfie Required',value=desc,inline=False)
+                                    elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
+                                    if wolfie == "" or spotter == "": unf = True
+                                weekday = datetime.today().weekday()
+                                if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15) and (wolfie == "" or spotter == ""):
+                                    wkday = dtdate.weekday()
+                                    if wkday == 0: wkday = "Mo"
+                                    elif wkday == 1: wkday = "Tu"
+                                    elif wkday == 2: wkday = "We"
+                                    elif wkday == 3: wkday = "Th"
+                                    elif wkday == 4: wkday = "Fr"
+                                    elif wkday == 5: wkday = "Sa"
+                                    elif wkday == 6: wkday = "Su"
+                                    truncdat = dtdate.strftime("%m/%d")
+                                    sstime = stime.lower().replace(" ","")
+                                    eetime = etime.lower().replace(" ","")
+                                    if len(sstime) < 7: sstime = "0" + sstime
+                                    if len(eetime) < 7: eetime = "0" + eetime
+                                    evt = f"{wk_unf}. {wkday} {truncdat} @ {sstime} - {eetime} "
+                                    if wolfie == "" and spotter == "":evt = evt + "(1x W, 1x S)"
+                                    elif wolfie == "": evt = evt + "(1x W)"
+                                    elif spotter == "": evt = evt + "(1x S)"
+                                    evt = evt + nl
+                                    wk_unf_evts = wk_unf_evts + evt
+                                    wk_unf += 1
+                            if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate: #Creates event folder for photos/videos
                                 try:
-                                    gc.update_event(edevt)
-                                    print("Event Edited")
+                                    description = additional_info.lower()
                                 except:
-                                    print("EVENT COULD NOT BE UPDATED")
-                            print(edevt.start,edevt.start.tzinfo)
-                            if dtdate <= datetime.now() + timedelta(days=7):
-                                desc = f"{date}: {start_time}-{end_time}"
-                                if wolfie == "" and spotter == "": unf_evt.add_field(name=f'{title} - W & S Required',value=desc,inline=False)
-                                elif wolfie == "": unf_evt.add_field(name=f'{title} - Wolfie Required',value=desc,inline=False)
-                                elif spotter == "": unf_evt.add_field(name=f'{title} - Spotter Required',value=desc,inline=False)
-                                if wolfie == "" or spotter == "": unf = True
-                            weekday = datetime.today().weekday()
-                            if  weekday == 6 and dtdate <= datetime.now() + timedelta(days=15) and (wolfie == "" or spotter == ""):
-                                wkday = dtdate.weekday()
-                                if wkday == 0: wkday = "Mo"
-                                elif wkday == 1: wkday = "Tu"
-                                elif wkday == 2: wkday = "We"
-                                elif wkday == 3: wkday = "Th"
-                                elif wkday == 4: wkday = "Fr"
-                                elif wkday == 5: wkday = "Sa"
-                                elif wkday == 6: wkday = "Su"
-                                truncdat = dtdate.strftime("%m/%d")
-                                sstime = stime.lower().replace(" ","")
-                                eetime = etime.lower().replace(" ","")
-                                if len(sstime) < 7: sstime = "0" + sstime
-                                if len(eetime) < 7: eetime = "0" + eetime
-                                evt = f"{wk_unf}. {wkday} {truncdat} @ {sstime} - {eetime} "
-                                if wolfie == "" and spotter == "":evt = evt + "(1x W, 1x S)"
-                                elif wolfie == "": evt = evt + "(1x W)"
-                                elif spotter == "": evt = evt + "(1x S)"
-                                evt = evt + nl
-                                wk_unf_evts = wk_unf_evts + evt
-                                wk_unf += 1
-                        if datetime.strptime(today,"%m/%d/%Y") + timedelta(days=1) == dtdate: #Creates event folder for photos/videos
-                            try:
-                                description = additional_info.lower()
-                            except:
-                                description = ""
-                            eventType = wolfie_schedule.cell(f"G{x}").value.lower()
+                                    description = ""
+                                eventType = wolfie_schedule.cell(f"G{x}").value.lower()
+                                isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
+                                if "cancelled" in isCancelled or "no coverage" in isCancelled: evtType = "none"
+                                elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
+                                elif "bb" in eventType or "football" in eventType: evtType = "sports_event"
+                                elif "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
+                                else: evtType = "on_campus"
+                                event_date = datetime.strftime(dtdate,"%Y/%m/%d")
+                                if evtType != "none": 
+                                    try:
+                                        await utils.createEventFolder(title,event_date,evtType,spotter)
+                                    except Exception:
+                                        await utils.ErrorHandler(Exception, f"createEventFolder (event: {title}, row: {x})")
+                        elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
+                            pause = 2
+                            sheet = await utils.GetAcademicYear()
+                            sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
+                            shrow = int(sheet.cell("AD1").value)
+                            columns = ["a","b","c","d","e","f","g","i","j","k","l","m","n","o"]
+                            pause += 2
+                            for col in columns:
+                                if col == "k":
+                                    requester = wolfie_schedule.cell(f"{col}{x}").value
+                                    await asyncio.sleep(1)
+                                if col =="c":
+                                    event_name = wolfie_schedule.cell(f"{col}{x}").value
+                                    await asyncio.sleep(1)
+                                sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
+                                await asyncio.sleep(1)
                             isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
-                            if "cancelled" in isCancelled or "no coverage" in isCancelled: evtType = "none"
-                            elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
-                            elif "bb" in eventType or "football" in eventType: evtType = "sports_event"
-                            elif "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
-                            else: evtType = "on_campus"
-                            event_date = datetime.strftime(dtdate,"%Y/%m/%d")
-                            if evtType != "none": await utils.createEventFolder(title,event_date,evtType,spotter)
-                    elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
-                        pause = 2
-                        sheet = await utils.GetAcademicYear()
-                        sheet = gsheet.worksheet_by_title(f'COMPLETED {sheet} EVENTS')
-                        shrow = int(sheet.cell("AD1").value)
-                        columns = ["a","b","c","d","e","f","g","i","j","k","l","m","n","o"]
-                        pause += 2
-                        for col in columns:
-                            if col == "k":
-                                requester = wolfie_schedule.cell(f"{col}{x}").value
-                                await asyncio.sleep(1)
-                            if col =="c":
-                                event_name = wolfie_schedule.cell(f"{col}{x}").value
-                                await asyncio.sleep(1)
-                            sheet.update_value(f"{col}{shrow}",wolfie_schedule.cell(f"{col}{x}").value)
-                            await asyncio.sleep(1)
-                        isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
-                        isCancelled = bool("cancelled" not in isCancelled and "no coverage" not in isCancelled)
-                        if "@" in requester and isCancelled:
-                            subject = f"Wolfie Satisfaction Form - {event_name}"
-                            requester_name = requester.split("@")[0].split(".")[0].capitalize()
-                            subject = subject.replace(" ","%20")
-                            email_date = dtdate.strftime("%Y-%m-%d")
-                            nl = '\n'
-                            event_reference = str(sheet.cell(f"BH{shrow}").value)
-                            form_link=f"https://docs.google.com/forms/d/e/1FAIpQLSdYB7Jc-cGcEVAMkK6kfEo1S5QAb1GxFsJTvolY6_3UexvaqQ/viewform?usp=pp_url&entry.708486352={event_name.replace(' ','%20')}&entry.1669706537={email_date}&entry.395191729={event_reference}"
-                            body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0A{form_link}"
-                            body = body.replace("%0D%0A",nl)
-                            email_link = f"{body}"
-                            email_embed = discord.Embed(title=f"Wolfie Satisfaction Form Email - {event_name}",description=f"send to: {requester}")
-                            email_chan = bot.get_channel(1137056916032475186)
-                            await email_chan.send(embed=email_embed)
-                            await email_chan.send(email_link)
-                        wolfie_schedule.delete_rows(x)
-                        x -= 1
-                        #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
-                        print("Moved Row")
-                    elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
-                        pause = 3
-                        y = False
-                    print(f"{pause}s pause")
-                    await asyncio.sleep(pause)
+                            isCancelled = bool("cancelled" not in isCancelled and "no coverage" not in isCancelled)
+                            if "@" in requester and isCancelled:
+                                subject = f"Wolfie Satisfaction Form - {event_name}"
+                                requester_name = requester.split("@")[0].split(".")[0].capitalize()
+                                subject = subject.replace(" ","%20")
+                                email_date = dtdate.strftime("%Y-%m-%d")
+                                nl = '\n'
+                                event_reference = str(sheet.cell(f"BH{shrow}").value)
+                                form_link=f"https://docs.google.com/forms/d/e/1FAIpQLSdYB7Jc-cGcEVAMkK6kfEo1S5QAb1GxFsJTvolY6_3UexvaqQ/viewform?usp=pp_url&entry.708486352={event_name.replace(' ','%20')}&entry.1669706537={email_date}&entry.395191729={event_reference}"
+                                body = f"Hello {requester_name},%0D%0A%0D%0AWolfie had a lot of fun at {event_name}! If you have any events in the future that you would like Wolfie to attend, please put in a request (link in my signature).%0D%0A%0D%0AWe are always looking to improve how Wolfie does at events, so I was hoping you could fill out a brief survey on how Wolfie did! Any comments help us to make events better in the future! Please take the time to fill out this survey:%0D%0A%0D%0A{form_link}"
+                                body = body.replace("%0D%0A",nl)
+                                email_link = f"{body}"
+                                email_embed = discord.Embed(title=f"Wolfie Satisfaction Form Email - {event_name}",description=f"send to: {requester}")
+                                email_chan = bot.get_channel(1137056916032475186)
+                                await email_chan.send(embed=email_embed)
+                                await email_chan.send(email_link)
+                            wolfie_schedule.delete_rows(x)
+                            x -= 1
+                            #wolfie_schedule.update_dimensions_visibility(x,x,dimension='ROWS',hidden=True)
+                            print("Moved Row")
+                        elif wolfie_schedule.cell(f"A{x}").value == "" and wolfie_schedule.cell(f"A{x+1}").value == "": # figures out that the bot has reached the end of the dates to process
+                            pause = 3
+                            y = False
+                        print(f"{pause}s pause")
+                        await asyncio.sleep(pause)
+                    except Exception:
+                        await utils.ErrorHandler(Exception, f"iterate_events (row {x})")
+                        pause = 3  # fall back to a short pause instead of whatever the failure left `pause` as
                 chan = bot.get_channel(902627543864205342)
                 chan2 = bot.get_channel(1074749682414272652)
                 if unf == True: await chan2.send(embed=unf_evt)
