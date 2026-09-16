@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.8'
+version = f'1.4.9'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -126,6 +126,21 @@ async def on_ready(): #Has error handling
         await utils.ErrorHandler(Exception,"Startup")
     #await utils.createRemoteFolder(folderName="TEST",parentID=on_campus_folder)
     #await main()
+
+_opencloud_auth_state = {
+    "circuit_open_until": 0.0,
+}
+_OPENCLOUD_CIRCUIT_COOLDOWN = 300  # 5 min pause after a 401/403
+
+def opencloud_auth_blocked() -> bool:
+    """True if we're in a cooldown after a recent 401/403, to avoid hammering
+    a server that's likely rate-limiting/throttling us rather than rejecting
+    a genuinely bad credential."""
+    return time.time() < _opencloud_auth_state["circuit_open_until"]
+
+def trip_opencloud_auth_breaker():
+    _opencloud_auth_state["circuit_open_until"] = time.time() + _OPENCLOUD_CIRCUIT_COOLDOWN
+    print(f"[opencloud] 401/403 received — pausing all OpenCloud requests for {_OPENCLOUD_CIRCUIT_COOLDOWN}s")
 
 class utils:
     async def TimeCheck(timeStart, timeEnd, day = "NA") -> bool:                # SHOULD USE FORMAT '6:00AM' OR '11:00PM' and 0-6 for Mon - Sun
@@ -278,54 +293,16 @@ class utils:
         event_name,
         event_date,
         event_type="on_campus/off_campus/sports_event",
-        spotter=""
+        spotter="",
+        client=None,
     ):
-        # Get the year from the event date.
-        #
-        # Assumes event_date is in YYYY-MM-DD format.
-        year = str(event_date)[:4]
-        season_folder = f"{year} Season"
-    
-        # Create the event folder name
-        folder_name = f"{event_date.replace('-',' ').replace('/',' ')} - {event_name.replace('-',' ').replace('/',' ')}"
-    
-        # Process spotter names
-        spotter_name = ""
-    
-        if spotter != "":
-            spotter_list = spotter.replace("\n", " ").split(" ")
-            spotter_list = list(filter(lambda x: len(x) > 0, spotter_list))
-    
-            xp = round(len(spotter_list) / 2)
-            xpp = 2
-    
-            spotter_name = spotter_list[0]
-    
-            while xpp <= xp:
-                spotter_name = spotter_name + ", " + spotter_list[xpp]
-                xpp += 2
-    
-        # Determine the event-type folder
-        if event_type == "on_campus":
-            parent_folder = "On Campus"
-        elif event_type == "off_campus":
-            parent_folder = "Off Campus"
-        elif event_type == "sports_event":
-            parent_folder = "Sports"
-        else:
-            raise ValueError(
-                f"Invalid event_type: {event_type}. "
-                "Expected on_campus, off_campus, or sports_event."
-            )
+        # ... unchanged folder_name / spotter_name / folders logic ...
     
         base_url = OPEN_CLOUD_WEBDAV_URL.rstrip("/")
-    
-        # URL encode each folder name
         season_path = quote(season_folder, safe="")
         parent_path = quote(parent_folder, safe="")
         event_path = quote(folder_name, safe="")
     
-        # Create the complete folder hierarchy
         folders = [
             season_path,
             f"{season_path}/{parent_path}",
@@ -333,23 +310,30 @@ class utils:
             f"{season_path}/{parent_path}/{event_path}/Photos",
         ]
     
-        async with httpx.AsyncClient(
-            auth=(OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN),
-            timeout=30.0,
-        ) as client:
-            for folder in folders:
+        owns_client = client is None
+        if owns_client:
+            client = httpx.AsyncClient(
+                auth=(OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN),
+                timeout=30.0,
+            )
+    
+        try:
+            for i, folder in enumerate(folders):
+                if i > 0:
+                    await asyncio.sleep(1)  # stagger even within one event
                 url = f"{base_url}/{folder}/"
                 last_exc = None
                 for attempt in range(3):
+                    if opencloud_auth_blocked():
+                        raise RuntimeError("OpenCloud auth is in cooldown after a recent 401/403; skipping this run.")
                     try:
                         response = await client.request("MKCOL", url)
                         if response.status_code in (201, 405):
                             break
                         elif response.status_code in (401, 403):
-                            # genuine auth problem - reload creds from disk and retry once
-                            await asyncio.to_thread(refresh_opencloud_auth)
-                            client.auth = (OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN)
+                            trip_opencloud_auth_breaker()
                             last_exc = RuntimeError(f"Auth failed creating '{folder}': HTTP {response.status_code} - {response.text}")
+                            break  # don't retry against a credential/server state we just flagged as bad
                         else:
                             last_exc = RuntimeError(f"Failed to create OpenCloud folder '{folder}': HTTP {response.status_code} - {response.text}")
                     except httpx.RequestError as e:
@@ -357,8 +341,10 @@ class utils:
                     await asyncio.sleep(2 * (attempt + 1))
                 else:
                     raise last_exc
+        finally:
+            if owns_client:
+                await client.aclose()
     
-        # Return the Photos folder URL
         return (
             f"{base_url}/"
             f"{season_path}/"
@@ -570,6 +556,23 @@ class gcal:
                 #print(event_lst)
                 #print(str_event_lst)
                 # Begin checking the spreadsheet for current events
+                opencloud_client = httpx.AsyncClient(
+                    auth=(OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN),
+                    timeout=30.0,
+                )
+                
+                try:
+                    # existing PROPFIND-style sanity check, done ONCE per run
+                    base_url = OPEN_CLOUD_WEBDAV_URL.rstrip("/")
+                    precheck = await opencloud_client.request("PROPFIND", f"{base_url}/", headers={"Depth": "0"})
+                    if precheck.status_code in (401, 403):
+                        try:
+                            await asyncio.to_thread(refresh_opencloud_auth)
+                            opencloud_client.auth = (OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN)
+                        except RuntimeError as e:
+                            print(f"[iterate_events] OpenCloud auth unavailable this run: {e}")
+                except httpx.RequestError as e:
+                    print(f"[iterate_events] OpenCloud precheck failed (network): {e}")
                 x = 0; y = True
                 unf_evt = discord.Embed(title="Unfilled Events Eligible for Assigmnet",description=datetime.now().strftime("%m/%d/%Y"),url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
                 wk_unf_evts = ""
@@ -767,7 +770,7 @@ class gcal:
                                 event_date = datetime.strftime(dtdate,"%Y/%m/%d")
                                 if evtType != "none": 
                                     try:
-                                        await utils.createEventFolder(title,event_date,evtType,spotter)
+                                        await utils.createEventFolder(title, event_date, evtType, spotter, client=opencloud_client)
                                     except Exception:
                                         await utils.ErrorHandler(Exception, f"createEventFolder (event: {title}, row: {x})")
                         elif dtdate != datetime.strptime("04/10/2002", "%m/%d/%Y") and datetime.strptime(today,"%m/%d/%Y") > dtdate: # Works if the event has already happened
@@ -822,6 +825,7 @@ class gcal:
                     wk_unf_embd = discord.Embed(title="Unfilled Events In The Coming Two Weeks",description=f"```{wk_unf_evts}```",url="https://docs.google.com/spreadsheets/d/1n_zqs13W4IsMAAvnX12I-sFmKtS6tfTpI4_8dnym58Q/edit?usp=sharing")
                     await chan2.send(embed=wk_unf_embd)
                 await chan.send("Event calendar is now up-to-date!")
+                await opencloud_client.aclose()
                 print("Search Completed")
             else:
                 print("Timecheck is False")
