@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.9'
+version = f'1.4.10'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -296,6 +296,41 @@ class utils:
         spotter="",
         client=None,
     ):
+        # Assumes event_date is in YYYY-MM-DD format.
+        year = str(event_date)[:4]
+        season_folder = f"{year} Season"
+    
+        # Create the event folder name
+        folder_name = f"{event_date.replace('-',' ').replace('/',' ')} - {event_name.replace('-',' ').replace('/',' ')}"
+    
+        # Process spotter names
+        spotter_name = ""
+    
+        if spotter != "":
+            spotter_list = spotter.replace("\n", " ").split(" ")
+            spotter_list = list(filter(lambda x: len(x) > 0, spotter_list))
+    
+            xp = round(len(spotter_list) / 2)
+            xpp = 2
+    
+            spotter_name = spotter_list[0]
+    
+            while xpp <= xp:
+                spotter_name = spotter_name + ", " + spotter_list[xpp]
+                xpp += 2
+    
+        # Determine the event-type folder
+        if event_type == "on_campus":
+            parent_folder = "On Campus"
+        elif event_type == "off_campus":
+            parent_folder = "Off Campus"
+        elif event_type == "sports_event":
+            parent_folder = "Sports"
+        else:
+            raise ValueError(
+                f"Invalid event_type: {event_type}. "
+                "Expected on_campus, off_campus, or sports_event."
+            )
         # ... unchanged folder_name / spotter_name / folders logic ...
     
         base_url = OPEN_CLOUD_WEBDAV_URL.rstrip("/")
