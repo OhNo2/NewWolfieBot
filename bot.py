@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.10'
+version = f'1.4.11'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -602,7 +602,6 @@ class gcal:
                     precheck = await opencloud_client.request("PROPFIND", f"{base_url}/", headers={"Depth": "0"})
                     if precheck.status_code in (401, 403):
                         try:
-                            await asyncio.to_thread(refresh_opencloud_auth)
                             opencloud_client.auth = (OPEN_CLOUD_USERNAME, OPEN_CLOUD_APP_TOKEN)
                         except RuntimeError as e:
                             print(f"[iterate_events] OpenCloud auth unavailable this run: {e}")
