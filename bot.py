@@ -278,6 +278,24 @@ class utils:
         service = build(api_name, api_version, credentials=scoped_credentials)
         return service
 
+    def sanitize_folder_name(name: str) -> str:
+        # Replace newlines, tabs, and other whitespace with a normal space
+        name = re.sub(r'\s+', ' ', name)
+    
+        # Remove ASCII control characters except normal printable characters
+        name = ''.join(
+            char for char in name
+            if ord(char) >= 32 and ord(char) != 127
+        )
+    
+        # Prevent path traversal / accidental subdirectories
+        name = name.replace('/', ' ').replace('\\', ' ')
+    
+        # Clean up spaces created by replacements
+        name = re.sub(r' +', ' ', name)
+    
+        return name.strip()
+    
     async def createRemoteFolder(folderName, parentID = None):
         # Create a folder on Drive, returns the newely created folders ID
         body = {
@@ -420,23 +438,6 @@ class utils:
             else:
                 print("Alpha Wolf is Up to Date!")
 
-    def sanitize_folder_name(name: str) -> str:
-        # Replace newlines, tabs, and other whitespace with a normal space
-        name = re.sub(r'\s+', ' ', name)
-    
-        # Remove ASCII control characters except normal printable characters
-        name = ''.join(
-            char for char in name
-            if ord(char) >= 32 and ord(char) != 127
-        )
-    
-        # Prevent path traversal / accidental subdirectories
-        name = name.replace('/', ' ').replace('\\', ' ')
-    
-        # Clean up spaces created by replacements
-        name = re.sub(r' +', ' ', name)
-    
-        return name.strip()
 
 ARRAYFORMULA_COLUMNS = ["I","J","K","L","M","N","R","S"]
 PERCENT_COLUMNS = ["F","G","H"]
