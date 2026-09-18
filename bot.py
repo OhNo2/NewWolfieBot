@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.11'
+version = f'1.4.12'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -302,6 +302,7 @@ class utils:
     
         # Create the event folder name
         folder_name = f"{event_date.replace('-',' ').replace('/',' ')} - {event_name.replace('-',' ').replace('/',' ')}"
+        folder_name = utils.sanitize_folder_name(folder_name)
     
         # Process spotter names
         spotter_name = ""
@@ -418,6 +419,24 @@ class utils:
                 #    os.execv(sys.executable, ['python'] + sys.argv)
             else:
                 print("Alpha Wolf is Up to Date!")
+
+    def sanitize_folder_name(name: str) -> str:
+        # Replace newlines, tabs, and other whitespace with a normal space
+        name = re.sub(r'\s+', ' ', name)
+    
+        # Remove ASCII control characters except normal printable characters
+        name = ''.join(
+            char for char in name
+            if ord(char) >= 32 and ord(char) != 127
+        )
+    
+        # Prevent path traversal / accidental subdirectories
+        name = name.replace('/', ' ').replace('\\', ' ')
+    
+        # Clean up spaces created by replacements
+        name = re.sub(r' +', ' ', name)
+    
+        return name.strip()
 
 ARRAYFORMULA_COLUMNS = ["I","J","K","L","M","N","R","S"]
 PERCENT_COLUMNS = ["F","G","H"]
