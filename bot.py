@@ -53,7 +53,7 @@ for event in gc:
     print(event)
 print("done")
 
-version = f'1.4.12'
+version = f'1.4.13'
 signature = f'James D. Boglioli'
 name = "Alpha Wolf"
 Project_Maintainer = "James Boglioli (James.Boglioli@StonyBrook.edu)"
@@ -818,7 +818,7 @@ class gcal:
                                 isCancelled = wolfie_schedule.cell(f"I{x}").value.lower()
                                 if "cancelled" in isCancelled or "no coverage" in isCancelled: evtType = "none"
                                 elif "off campus" in description or "off-campus" in description: evtType = "off_campus"
-                                elif "bb" in eventType or "football" in eventType: evtType = "sports_event"
+                                elif "bb" in eventType or "football" in eventType or "senior night" in eventType: evtType = "sports_event"
                                 elif "meeting" in eventType or "tournament" in eventType or "uca" in eventType or "rehersal" in eventType or "practice" in eventType: evtType = "none"
                                 else: evtType = "on_campus"
                                 event_date = datetime.strftime(dtdate,"%Y/%m/%d")
